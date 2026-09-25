@@ -645,14 +645,19 @@ export class GlowerTowerGame {
     //  - applyGemGlow dorzuca tania poswiate zalezna od sciany (w cieniu tez
     //    widac ksztalt, a nie sam obrys).
     const gemMat = new THREE.MeshStandardMaterial({
-      color: "#ffb020",
-      emissive: "#ff9a1f",
-      emissiveIntensity: 0.35,
+      // KOLORY Z REPO — nie zmieniamy barwy klejnotu (albedo i emisja jak było).
+      color: "#f59e0b",
+      emissive: "#d97706",
+      emissiveIntensity: 0.6,
+      // Zmieniamy WYLACZNIE sposob odbijania swiatla: ostry refleks, diffuse
+      // wraca (metalness bylo 0.9 bez envMap = brak diffuse i specularu),
+      // flatShading daje kazdej scianie wlasna normalna.
       roughness: 0.08,
       metalness: 0.05,
       flatShading: true,
     });
-    applyGemGlow(gemMat, { coreColor: "#ffd166", glow: 1.0 });
+    // Poswiata szlifu w barwie emisji repo — zadnego nowego odcienia.
+    applyGemGlow(gemMat, { coreColor: "#d97706", glow: 1.0 });
     this.playerState.totalGems = this.level.gems.length;
     this.level.gems.forEach((pt) => {
       // pt.x to już środek (visual bez +0.5) - zostawiamy jako środek.

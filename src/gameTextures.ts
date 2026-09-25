@@ -501,7 +501,11 @@ export function createCollapsingStairMaterial(): THREE.MeshStandardMaterial {
 // dodatkowych draw calls i zero nowych tekstur.
 
 export interface GemGlowOptions {
-  /** Kolor wewnetrznego swiatla (domyslnie jasne zloto). */
+  /**
+   * Barwa poswiaty szlifu. Domyslnie dokladnie emisja klejnotu z repo
+   * (#d97706) — funkcja NIE wprowadza nowego koloru, tylko moduluje jasnosc
+   * istniejacej palety zaleznie od sciany.
+   */
   coreColor?: string;
   /** Mnoznik sily poswiaty (1 = wartosci domyslne). */
   glow?: number;
@@ -513,7 +517,7 @@ export interface GemGlowOptions {
 
 export function applyGemGlow(material: THREE.MeshStandardMaterial, options: GemGlowOptions = {}): void {
   const uniforms = {
-    uGemCore: { value: new THREE.Color(options.coreColor ?? "#ffd166") },
+    uGemCore: { value: new THREE.Color(options.coreColor ?? "#d97706") },
     uGemGlow: { value: options.glow ?? 1.0 },
     uGemFacet: { value: options.facetStrength ?? 0.9 },
     uGemGlint: { value: options.glintStrength ?? 0.9 },
@@ -556,12 +560,15 @@ export function applyGemGlow(material: THREE.MeshStandardMaterial, options: GemG
           // blysk na scianach skierowanych „ku swiatlu”; przy obrocie klejnotu
           // (rotation.y w updateVisuals) wedruje po kolejnych scianach
           float glint = pow( max( 0.0, dot( gemFace, normalize( vec3( 0.18, 0.94, 0.29 ) ) ) ), 6.0 );
-          totalEmissiveRadiance += uGemCore * uGemGlow * ( 0.28 + facet * uGemFacet + glint * uGemGlint );
+          // Tylko MODULACJA: bez skladnika stalego, wiec srednia jasnosc i barwa
+          // klejnotu zostaja takie jak w repo — zmienia sie jedynie to, ze
+          // sciany roznia sie jasnoscia (bryle widac takze w cieniu).
+          totalEmissiveRadiance += uGemCore * uGemGlow * ( facet * uGemFacet * 0.55 + glint * uGemGlint * 0.6 );
         }`
       );
   };
 
-  material.customProgramCacheKey = () => "gem-glow-v1";
+  material.customProgramCacheKey = () => "gem-glow-v2";
   material.needsUpdate = true;
 }
 
