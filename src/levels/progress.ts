@@ -13,7 +13,13 @@ export interface SavedProgress {
   bestScores: Record<string, LevelBestScore>;
 }
 
-const STORAGE_KEY = "glower-tower-progress-v5";
+/**
+ * Klucz zapisu postępów — JEDYNE źródło prawdy. Testy regresji
+ * (tests/progress.test.mjs) importują go z tego modułu, więc zmiana nazwy
+ * tutaj wystarcza i nic się nie rozjeżdża.
+ */
+export const PROGRESS_STORAGE_KEY = "glower-tower-progress-v6";
+const STORAGE_KEY = PROGRESS_STORAGE_KEY;
 
 import { TOTAL_LEVELS } from "../levels";
 

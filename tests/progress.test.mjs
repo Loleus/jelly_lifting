@@ -4,7 +4,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createServer } from "vite";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const STORAGE_KEY = "glower-tower-progress-v5";
+// Klucz zapisu bierzemy z modułu, którego testy dotyczą (PROGRESS_STORAGE_KEY),
+// więc podniesienie numeru wersji w src/levels/progress.ts nie rozjeżdża testów.
+// Literał jest tylko awaryjnym zapasem, gdyby eksportu nie było.
+let STORAGE_KEY = "glower-tower-progress-v5";
 
 class MemoryStorage {
   values = new Map();
@@ -35,6 +38,7 @@ export async function runProgressTests() {
 
   try {
     const progress = await server.ssrLoadModule("/src/levels/progress.ts");
+    STORAGE_KEY = progress.PROGRESS_STORAGE_KEY ?? STORAGE_KEY;
 
     test("reaching the top without all gems keeps the next level locked", () => {
       const result = progress.markLevelCompleted(1, false, 8, 22, 7);

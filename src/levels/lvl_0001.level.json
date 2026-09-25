@@ -23,7 +23,6 @@
     { "id": "st_8_17", "x": 8, "topY": 17, "count": 2 },
     { "id": "st_13_19.5", "x": 13, "topY": 19.5, "count": 2 },
     { "id": "st_17_45.5", "x": 17, "topY": 45.5, "count": 2 },
-    { "id": "st_0_0", "x": 0, "topY": 0, "count": 18 },
     { "id": "st_lev_18_0", "x": 18, "topY": 0, "count": 1 },
     { "id": "st_door_21_2", "x": 21, "topY": 2, "count": 1 },
     { "id": "st_door_19_46", "x": 19, "topY": 45.5, "count": 1 },
@@ -55,7 +54,14 @@
     { "id": "st_8_20", "x": 8, "topY": 20, "count": 2 },
     { "id": "st_11_21", "x": 11, "topY": 21, "count": 2 },
     { "id": "st_9_42", "x": 9, "topY": 42, "count": 2 },
-    { "id": "st_12_42", "x": 12, "topY": 42, "count": 1 }
+    { "id": "st_12_42", "x": 12, "topY": 42, "count": 1 },
+    { "id": "st_11_0", "x": 11, "topY": 0, "count": 1 },
+    { "id": "st_13_0", "x": 13, "topY": 0, "count": 1 },
+    { "id": "st_15_0", "x": 15, "topY": 0, "count": 1 },
+    { "id": "st_17_0", "x": 17, "topY": 0, "count": 1 },
+    { "id": "st_9_0", "x": 9, "topY": 0, "count": 1 },
+    { "id": "st_7_0", "x": 7, "topY": 0, "count": 1 },
+    { "id": "st_23_0", "x": 23, "topY": 0, "count": 7 }
   ],
   "elevators": [
     { "id": "el_15_23.5", "x": 15, "width": 1.2, "yMin": 23.5, "yMax": 32.5, "speed": 0.75, "phase": 0 },
@@ -77,11 +83,6 @@
   ],
   "springs": [],
   "enemies": [
-    { "id": "en_bounce_8_0", "xCenter": 8, "y": 0.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1 },
-    { "id": "en_bounce_10_0", "xCenter": 10, "y": 0.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1 },
-    { "id": "en_bounce_12_0", "xCenter": 12, "y": 0.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1 },
-    { "id": "en_bounce_14_0", "xCenter": 14, "y": 0.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1 },
-    { "id": "en_bounce_16_0", "xCenter": 16, "y": 0.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1 },
     { "id": "en_patrol_10_33", "xCenter": 10, "y": 33.05, "behavior": "patrol", "amplitude": 2, "speed": 1 }
   ],
   "checkpoints": [
