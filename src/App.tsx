@@ -23,6 +23,12 @@ import { useRunTimer } from "./hooks/useRunTimer";
 
 type AppScreen = "menu" | "levelSelect" | "editor" | "playing" | "win" | "gameover" | "gamecomplete";
 
+/** Silnik tla menu + odroczone sprzatanie (patrz efekt montujacy na starcie). */
+interface BackdropEntry {
+  game: GlowerTowerGame;
+  disposeTimer?: number;
+}
+
 /** Zmiana konfiguracji: obiekt albo funkcja od AKTUALNEGO stanu (odporna na stare domknięcia). */
 export type ConfigPatch = Partial<EngineConfig> | ((prev: EngineConfig) => Partial<EngineConfig>);
 
@@ -52,6 +58,18 @@ const loadDevTools = (): Promise<DevToolsModule> =>
 export default function App() {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const gameRef = useRef<GlowerTowerGame | null>(null);
+  // Silnik tla menu trzymany osobno od gameRef, zeby remont StrictMode mogl go
+  // PRZEJAC zamiast budowac scene drugi raz. Sprzatanie jest odroczone o tick:
+  // jesli w tym czasie przyjdzie remont, timer jest kasowany i budowa jest jedna.
+  const backdropRef = useRef<BackdropEntry | null>(null);
+  const scheduleBackdropDisposal = (entry: BackdropEntry) => {
+    gameRef.current = null;
+    if (entry.disposeTimer !== undefined) clearTimeout(entry.disposeTimer);
+    entry.disposeTimer = window.setTimeout(() => {
+      entry.game.dispose();
+      if (backdropRef.current === entry) backdropRef.current = null;
+    }, 0);
+  };
 
   const [screen, setScreen] = useState<AppScreen>("menu");
   const screenRef = useRef<AppScreen>("menu");
@@ -256,11 +274,39 @@ export default function App() {
   );
 
   // Initial engine mount (menu backdrop).
+  //
+  // WAZNE — dwie sprzeczne potrzeby, zalatwione jedna konstrukcja:
+  //  1) Silnik MUSI powstac SYNCHRONICZNIE w efekcie, zeby `<canvas>` i scena
+  //     byly w DOM przed pierwszym malowaniem. Inaczej plansza menu i logo
+  //     "wyskakuja" na pustym tle, zanim pojawi sie render (tak bylo, gdy
+  //     budowa byla odroczona o requestAnimationFrame).
+  //  2) StrictMode w dev montuje efekty DWUKROTNIE (mount -> cleanup -> mount),
+  //     wiec synchroniczny build + natychmiastowy dispose w cleanupie budowal
+  //     cala scene dwa razy (kilka sekund).
+  // Rozwiazanie: budujemy raz, a cleanup NIE kasuje silnika od razu — tylko
+  // planuje sprzatanie w nastepnym ticku. Remont z tego samego montazu
+  // przychodzi w mikrotasku PRZED tym timerem i PRZEJMUJE ten sam silnik
+  // (backdropRef), wiec budowa jest jedna. Prawdziwe odmontowanie (wyjscie z
+  // aplikacji) nie ma nastepnika, wiec timer faktycznie zwalnia zasoby.
   useEffect(() => {
+    const adopted = backdropRef.current;
+    if (adopted) {
+      // Przejecie silnika z poprzedniego (skasowanego) montazu StrictMode.
+      if (adopted.disposeTimer !== undefined) {
+        clearTimeout(adopted.disposeTimer);
+        adopted.disposeTimer = undefined;
+      }
+      gameRef.current = adopted.game;
+      adopted.game.setSceneMode("menu");
+      return () => scheduleBackdropDisposal(adopted);
+    }
     const initialIdx = menuLevelIndex(loadProgress());
     const game = createEngine(LEVELS[initialIdx]);
-    if (game) game.setSceneMode("menu");
-    return () => { gameRef.current?.dispose(); gameRef.current = null; };
+    if (!game) return;
+    game.setSceneMode("menu");
+    const entry = { game } as BackdropEntry;
+    backdropRef.current = entry;
+    return () => scheduleBackdropDisposal(entry);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
