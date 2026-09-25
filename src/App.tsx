@@ -273,21 +273,16 @@ export default function App() {
     []
   );
 
-  // Initial engine mount (menu backdrop).
+  // Tło menu: silnik montowany raz, synchronicznie.
   //
-  // WAZNE — dwie sprzeczne potrzeby, zalatwione jedna konstrukcja:
-  //  1) Silnik MUSI powstac SYNCHRONICZNIE w efekcie, zeby `<canvas>` i scena
-  //     byly w DOM przed pierwszym malowaniem. Inaczej plansza menu i logo
-  //     "wyskakuja" na pustym tle, zanim pojawi sie render (tak bylo, gdy
-  //     budowa byla odroczona o requestAnimationFrame).
-  //  2) StrictMode w dev montuje efekty DWUKROTNIE (mount -> cleanup -> mount),
-  //     wiec synchroniczny build + natychmiastowy dispose w cleanupie budowal
-  //     cala scene dwa razy (kilka sekund).
-  // Rozwiazanie: budujemy raz, a cleanup NIE kasuje silnika od razu — tylko
-  // planuje sprzatanie w nastepnym ticku. Remont z tego samego montazu
-  // przychodzi w mikrotasku PRZED tym timerem i PRZEJMUJE ten sam silnik
-  // (backdropRef), wiec budowa jest jedna. Prawdziwe odmontowanie (wyjscie z
-  // aplikacji) nie ma nastepnika, wiec timer faktycznie zwalnia zasoby.
+  //  1) Budowa MUSI być synchroniczna w efekcie, żeby `<canvas>` i scena były
+  //     w DOM przed pierwszym malowaniem — inaczej plansza menu pojawia się
+  //     na pustym tle.
+  //  2) StrictMode w dev montuje efekty dwukrotnie (mount -> cleanup -> mount).
+  //     Dlatego cleanup nie zwalnia silnika natychmiast, a planuje sprzątanie
+  //     w następnym ticku: remont z tego samego montażu przejmuje ten sam
+  //     silnik (backdropRef), więc scena powstaje raz. Prawdziwe odmontowanie
+  //     nie ma następnika, więc timer zwalnia zasoby normalnie.
   useEffect(() => {
     const adopted = backdropRef.current;
     if (adopted) {
@@ -335,11 +330,12 @@ export default function App() {
 
   // ── WARSTWA OCZEKIWANIA / POWROTU ─────────────────────────────────────────
   /**
-   * Maluje overlay (flushSync) i dopiero po dwoch klatkach wykonuje `work`,
-   * czyli zmiane ekranu i — juz w efekcie — przebudowe silnika tla. Bez tego
-   * przejscie "gra -> menu" zamrazalo obraz do czasu zbudowania menu.
-   * `heavy` = czy przejscie naprawde wymaga przebudowy (gdy tlo jest juz
-   * wlasciwa wieza, nie ma po co pokazywac overlay'a ani czekac).
+   * Maluje overlay (flushSync) i dopiero po dwóch klatkach wykonuje `work`,
+   * czyli zmianę ekranu i — już w efekcie — przebudowę silnika tła. Dzięki
+   * temu warstwa oczekiwania jest na ekranie, zanim main thread zajmie się
+   * budową sceny.
+   * `heavy` = czy przejście wymaga przebudowy tła (gdy tłem jest już właściwa
+   * wieża, przejście jest natychmiastowe, bez overlaya).
    */
   const withTransition = (
     variant: "tower" | "back",
@@ -528,9 +524,8 @@ export default function App() {
   const startLevel = (levelNum: number, options: { changeScreenImmediately?: boolean } = {}) => {
     const level = LEVELS[levelNum - 1];
     flushSync(() => {
-      // Wariant MUSI byc ustawiony tutaj: loadingVariant jest trwalym stanem,
-      // wiec po powrocie do wyboru poziomu (wariant "back") kolejne wejscie na
-      // poziom pokazywaloby plansze „Powrot / Wczytuje” zamiast „Wieza N”.
+      // Wariant planszy jest trwałym stanem komponentu, więc start poziomu
+      // zawsze ustawia go na „tower”.
       setLoadingVariant("tower");
       loading.trigger(level.gems.length);
       if (options.changeScreenImmediately) setScreen("playing");
