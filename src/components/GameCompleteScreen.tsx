@@ -2,7 +2,6 @@ import React from "react";
 import { Home, RotateCcw, Sparkles, Trophy } from "lucide-react";
 import type { Translation } from "../i18n";
 import { formatTime } from "../utils/formatTime";
-import { fireCompletionConfetti } from "../utils/confettiEffects";
 import { Modal } from "../ui/Modal";
 import { StatsGrid } from "../ui/StatsGrid";
 import { BTN_PRIMARY, BTN_SECONDARY_FULL, MODAL_PANEL_LG } from "../ui/styles";
@@ -30,7 +29,9 @@ export const GameCompleteScreen: React.FC<GameCompleteScreenProps> = ({
   onRestart,
   onBackToMenu,
 }) => {
-  React.useEffect(() => fireCompletionConfetti(), []);
+  // Konfetti usuniete calkowicie: canvas-confetti dokladalo wlasny <canvas>
+  // na cale okno i animowalo setki czastek na wlasnym rAF, co zamulalo ekran
+  // gratulacyjny (i dokladalo kolejny kontekst do przemalowywania).
 
   return (
     <Modal panelClassName={MODAL_PANEL_LG}>

@@ -1,7 +1,6 @@
 import React from "react";
 import { ArrowRight, Diamond, Home, Lock, RotateCcw, ShieldAlert, Sparkles, Trophy } from "lucide-react";
 import type { Translation } from "../i18n";
-import { fireVictoryConfetti } from "../utils/confettiEffects";
 import { Modal } from "../ui/Modal";
 import { StatsGrid } from "../ui/StatsGrid";
 import { formatTime } from "../utils/formatTime";
@@ -45,9 +44,9 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   const allGemsCollected = gems >= totalGems;
   const canAdvance = allGemsCollected && levelNumber < totalLevels && !!onNextLevel;
 
-  React.useEffect(() => {
-    if (allGemsCollected) return fireVictoryConfetti();
-  }, [allGemsCollected]);
+  // Konfetti usuniete calkowicie: canvas-confetti dokladalo wlasny <canvas>
+  // na cale okno i animowalo setki czastek na wlasnym rAF, co zamulalo ekran
+  // gratulacyjny (i dokladalo kolejny kontekst do przemalowywania).
 
   return (
     <Modal panelClassName={MODAL_PANEL}>
