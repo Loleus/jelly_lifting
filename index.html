@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="pl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Glut Żelek: Wieże</title>
+  <meta name="theme-color" content="#0e4a6e" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Glut Żelek" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
+  <link rel="icon" type="image/png" sizes="96x96" href="./icons/favicon-96x96.png">
+  <link rel="icon" href="./icons/favicon.ico">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  <!-- Open Graph -->
+  <meta property="og:title" content="Glut Żelek: Wieża" />
+  <meta property="og:description" content="Wspinaj się po wieżach z Glutem Żelkiem — platformowa gra 3D w przeglądarce." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://loleus.github.io/glutzelek/" />
+  <meta property="fb:app_id" content="0" />
+
+  <meta property="og:image" content="https://loleus.github.io/glutzelek/glut.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="960" />
+  <meta property="og:image:height" content="540" />
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Glut Żelek: Wieża" />
+  <meta name="twitter:description" content="Wspinaj się po wieżach z Glutem Żelkiem — platformowa gra 3D w przeglądarce." />
+  <meta name="twitter:image" content="https://loleus.github.io/glutzelek/glut.png" />
+  <style>
+    html,
+    body {
+      margin: 0 !important;
+      padding: 0 !important;
+      line-height: normal !important;
+      font-family: inherit !important;
+      -webkit-font-smoothing: antialiased !important;
+      -moz-osx-font-smoothing: grayscale !important;
+    }
+
+    *,
+    ::before,
+    ::after {
+      box-sizing: border-box !important;
+    }
+
+    body {
+      line-height: 1 !important;
+    }
+
+    html {
+      font-family: "Freckle Face", sans-serif !important;
+    }
+
+    @font-face {
+      font-family: "Freckle Face";
+      src: url("./fonts/FreckleFace-Regular.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: "Yarin";
+      src: url("./fonts/Yarin-Regular.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: "Cause";
+      src: url("./fonts/Cause-Regular.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: "Cause-Bold";
+      src: url("./fonts/Cause-Bold.woff2") format("woff2");
+      font-weight: 800;
+      font-style: normal;
+    }
+
+    .font-freckle {
+      font-family: "Freckle Face", ui-serif, Georgia, serif;
+    }
+
+    .font-arial {
+      font-family: "Cause", Helvetica, sans-serif;
+    }
+
+    .font-case {
+      font-family: "Cause-Bold", Helvetica, sans-serif;
+    }
+
+    .font-yarin {
+      font-family: "Yarin", ui-serif, Georgia, serif;
+    }
+
+    .logo {
+      font-family: "Yarin", ui-serif, Georgia, serif;
+      font-size: 2.8rem;
+      color: #8bf;
+      text-shadow: 0 0 5px #8bf, 0 0 20px #8bf, 0 0 30px #8bf, 0 0 40px #8bf;
+      margin-bottom: 1rem;
+    }
+
+    .menu-logo {
+      font-family: "Yarin", ui-serif, Georgia, serif;
+      color: #8bf;
+      font-size: 1.3rem;
+      text-shadow: 0 0 5px #8bf, 0 0 20px #8bf, 0 0 30px #8bf, 0 0 40px #8bf;
+    }
+
+    #loader {
+      position: fixed;
+      inset: 0;
+      background: #071018;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      color: #8bf;
+      font-family: "Freckle Face", sans-serif;
+      font-size: 20px;
+    }
+
+    .loader-text {
+      margin-top: 1rem;
+      font-family: "Yarin", sans-serif;
+      font-size: 2.3rem;
+      color: #8bf;
+      text-shadow: 0 0 5px #8bf, 0 0 20px #8bf, 0 0 30px #8bf, 0 0 40px #8bf;
+
+    }
+
+    .spinner {
+      position: relative;
+      width: 6em;
+      height: 6em;
+    }
+
+    .spinner:before,
+    .spinner:after {
+      top: 50%;
+      left: 50%;
+      box-sizing: border-box;
+      content: '';
+      position: absolute;
+      margin-top: -3em;
+      margin-left: -3em;
+      width: 6em;
+      height: 6em;
+      background-size: 6em 6em;
+      background-image: url("data:image/svg+xml;utf8,%3Csvg width='266px' height='297px' viewBox='0 0 266 297' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M171.507813,3.25000038 C226.208183,12.8577111 297.112722,71.4912823 250.895599,108.410155 C216.582024,135.82031 186.528405,97.0624964 156.800774,85.7734346 C127.073143,74.4843721 76.8884632,84.2161462 60.1289065,108.410153 C-15.9804685,218.281247 145.277344,296.667968 145.277344,296.667968 C145.277344,296.667968 -25.4492187,257.242198 3.3984375,108.410155 C16.3070661,41.8114174 84.7275829,-11.9922985 171.507813,3.25000038 Z' fill='%2380b0f0'/%3E%3C/svg%3E");
+      filter: drop-shadow(0 0 5px #8bf) drop-shadow(0 0 10px #8bf) drop-shadow(0 0 15px #8bf) drop-shadow(0 0 20px #8bf);
+    }
+
+    .spinner:before {
+      transform: rotateX(60deg) rotateY(45deg) rotateZ(0deg);
+      animation: 1.36s rotateBefore infinite linear;
+    }
+
+    .spinner:after {
+      transform: rotateX(240deg) rotateY(45deg) rotateZ(0deg);
+      animation: 1.36s rotateAfter infinite linear;
+    }
+
+    @keyframes rotateBefore {
+      to {
+        transform: rotateX(60deg) rotateY(45deg) rotateZ(360deg);
+      }
+    }
+
+    @keyframes rotateAfter {
+      to {
+        transform: rotateX(240deg) rotateY(45deg) rotateZ(360deg);
+      }
+    }
+  </style>
+
+
+</head>
+
+<body>
+  <div id="loader">
+    <div class="logo">LUKAMI</div>
+    <div class="spinner"></div>
+    <div class="loader-text">©2026</div>
+  </div>
+
+  <div id="root"></div>
+  <script>
+    window.__fontsLoaded = false;
+
+    Promise.all([
+      document.fonts.load("20px Freckle Face"),
+      document.fonts.load("20px Yarin")
+    ]).then(() => {
+      window.__fontsLoaded = true;
+    });
+  </script>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>

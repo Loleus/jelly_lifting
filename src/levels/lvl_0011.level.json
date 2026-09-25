@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "id": "lvl_0041",
+  "name": "Nowy Poziom 41",
+  "towerHeight": 48,
+  "circumferenceSteps": 24,
+  "start": { "x": 0.5, "y": 0.5 },
+  "stairs": [
+    { "id": "st-start", "x": 0, "topY": 0, "count": 3 },
+    { "id": "st-summit", "x": 12, "topY": 48, "count": 5 },
+    { "id": "st_4_0", "x": 4, "topY": 0, "count": 2 },
+    { "id": "st_6_2", "x": 6, "topY": 2, "count": 2 },
+    { "id": "st_8_0", "x": 8, "topY": 0, "count": 2 },
+    { "id": "st_11_0", "x": 11, "topY": 0, "count": 8 },
+    { "id": "st_lev_19_0", "x": 19, "topY": 0, "count": 1 },
+    { "id": "st_21_4", "x": 21, "topY": 4, "count": 2 },
+    { "id": "st_lev_13_4", "x": 13, "topY": 4, "count": 1 },
+    { "id": "st_15_8", "x": 15, "topY": 8, "count": 1 },
+    { "id": "st_13_10", "x": 13, "topY": 10, "count": 1 },
+    { "id": "st_11_8", "x": 11, "topY": 8, "count": 2 },
+    { "id": "st_lev_10_8", "x": 10, "topY": 8, "count": 1 },
+    { "id": "st_4_8", "x": 4, "topY": 8, "count": 2 },
+    { "id": "st_door_3_8", "x": 3, "topY": 8, "count": 1 },
+    { "id": "st_door_3_12", "x": 3, "topY": 12, "count": 1 },
+    { "id": "st_4_12", "x": 4, "topY": 12, "count": 1 },
+    { "id": "st_lev_2_12", "x": 2, "topY": 12, "count": 1 },
+    { "id": "st_22_16", "x": 22, "topY": 16, "count": 2 },
+    { "id": "st_15_16", "x": 15, "topY": 16, "count": 6 },
+    { "id": "st_9_12", "x": 9, "topY": 12, "count": 1 },
+    { "id": "st_19_20", "x": 19, "topY": 20, "count": 2 },
+    { "id": "st_21_24", "x": 21, "topY": 24, "count": 12 },
+    { "id": "st_9_22.5", "x": 9, "topY": 22.5, "count": 1 },
+    { "id": "st_11_21", "x": 11, "topY": 21, "count": 1 },
+    { "id": "st_3_20", "x": 3, "topY": 20, "count": 8 },
+    { "id": "st_2_16", "x": 2, "topY": 16, "count": 8 },
+    { "id": "st_12_26", "x": 12, "topY": 26, "count": 2 },
+    { "id": "st_5_12", "x": 5, "topY": 12, "count": 2 },
+    { "id": "st_8_8", "x": 8, "topY": 8, "count": 2 },
+    { "id": "st_7_36", "x": 7, "topY": 36, "count": 2 },
+    { "id": "st_17_26", "x": 17, "topY": 26, "count": 2 },
+    { "id": "st_9_28", "x": 9, "topY": 28, "count": 2 },
+    { "id": "st_6_29", "x": 6, "topY": 29, "count": 2 },
+    { "id": "st_3_30", "x": 3, "topY": 30, "count": 2 },
+    { "id": "st_0_31", "x": 0, "topY": 31, "count": 2 },
+    { "id": "st_21_32", "x": 21, "topY": 32, "count": 2 },
+    { "id": "st_18_32.5", "x": 18, "topY": 32.5, "count": 2 },
+    { "id": "st_14_32.5", "x": 14, "topY": 32.5, "count": 2 },
+    { "id": "st_9_34.5", "x": 9, "topY": 34.5, "count": 1 },
+    { "id": "st_10_33", "x": 10, "topY": 33, "count": 2 },
+    { "id": "st_12_38.5", "x": 12, "topY": 38.5, "count": 1 },
+    { "id": "st_13_40", "x": 13, "topY": 40, "count": 1 },
+    { "id": "st_14_40", "x": 14, "topY": 40, "count": 18 },
+    { "id": "st_14_27.5", "x": 14, "topY": 27.5, "count": 2 },
+    { "id": "st_11_36.5", "x": 11, "topY": 36.5, "count": 1 },
+    { "id": "st_12_17", "x": 12, "topY": 17, "count": 2 },
+    { "id": "st_19_45.5", "x": 19, "topY": 45.5, "count": 7 },
+    { "id": "st_9_45.5", "x": 9, "topY": 45.5, "count": 9 },
+    { "id": "st_4_4", "x": 4, "topY": 4, "count": 1 },
+    { "id": "st_2_4", "x": 2, "topY": 4, "count": 1 },
+    { "id": "st_1_4", "x": 1, "topY": 4, "count": 1 },
+    { "id": "st_0_4", "x": 0, "topY": 4, "count": 1 },
+    { "id": "st_15_4", "x": 15, "topY": 4, "count": 2 },
+    { "id": "st_18_4", "x": 18, "topY": 4, "count": 1 }
+  ],
+  "elevators": [
+    { "id": "el_10_12", "x": 10, "width": 1.2, "yMin": 12, "yMax": 16, "speed": 0.75, "phase": 0 },
+    { "id": "el_21_16", "x": 21, "width": 1.2, "yMin": 16, "yMax": 20, "speed": 0.75, "phase": 0 },
+    { "id": "el_16_27.5", "x": 16, "width": 1.2, "yMin": 27.5, "yMax": 32.5, "speed": 0.75, "phase": 0 }
+  ],
+  "gems": [
+    { "id": "g_11_0.5", "x": 11.5, "y": 0.5 },
+    { "id": "g_16_4.5", "x": 16.5, "y": 4.5 },
+    { "id": "g_4_12.5", "x": 4.5, "y": 12.5 },
+    { "id": "g_15_16.5", "x": 15.5, "y": 16.5 },
+    { "id": "g_3_20.5", "x": 3.5, "y": 20.5 },
+    { "id": "g_4_30.5", "x": 4.5, "y": 30.5 },
+    { "id": "g_10_46", "x": 10.5, "y": 46 },
+    { "id": "g_7_40.5", "x": 7.5, "y": 40.5 },
+    { "id": "g_2_16.5", "x": 2.5, "y": 16.5 },
+    { "id": "g_0_4.5", "x": 0.5, "y": 4.5 }
+  ],
+  "springs": [
+    { "id": "sp_19_20", "x": 19, "topY": 20, "bounceForce": 18.5 },
+    { "id": "sp_2_40", "x": 2, "topY": 40, "bounceForce": 18.5 }
+  ],
+  "enemies": [
+    { "id": "en_patrol_13_0", "xCenter": 13, "y": 0.55, "behavior": "patrol", "amplitude": 2, "speed": 1 },
+    { "id": "en_patrol_3_24", "xCenter": 3, "y": 24.55, "behavior": "patrol", "amplitude": 3, "speed": 1.4 },
+    { "id": "en_patrol_6_29", "xCenter": 6, "y": 29.55, "behavior": "patrol", "amplitude": 1.5, "speed": 1.4 },
+    { "id": "en_patrol_3_30", "xCenter": 3, "y": 30.55, "behavior": "patrol", "amplitude": 1.5, "speed": 1.4 },
+    { "id": "en_patrol_16_40", "xCenter": 16, "y": 40.55, "behavior": "patrol", "amplitude": 1.5, "speed": 1.4 },
+    { "id": "en_bounce_20_40", "xCenter": 20, "y": 40.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 },
+    { "id": "en_bounce_22_40", "xCenter": 22, "y": 40.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 },
+    { "id": "en_bounce_0_40", "xCenter": 0, "y": 40.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 },
+    { "id": "en_bounce_18_40", "xCenter": 18, "y": 40.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 }
+  ],
+  "checkpoints": [
+    { "id": 1, "name": "Checkpoint 3", "floor": 12, "x": 11, "y": 12 },
+    { "id": 2, "name": "Punkt II", "floor": 24, "x": 20, "y": 24 },
+    { "id": 3, "name": "Punkt III", "floor": 36, "x": 6, "y": 36 },
+    { "id": 4, "name": "Checkpoint 5", "floor": 46, "x": 9, "y": 45.5 }
+  ],
+  "collapsingStairs": [
+    { "id": "cs_10_0", "x": 10, "topY": 0 },
+    { "id": "cs_18_46.5", "x": 18, "topY": 46.5 }
+  ],
+  "levers": [
+    { "id": "lev_19_0", "x": 19, "topY": 0 },
+    { "id": "lev_13_4", "x": 13, "topY": 4 },
+    { "id": "lev_10_8", "x": 10, "topY": 8 },
+    { "id": "lev_2_12", "x": 2, "topY": 12 }
+  ],
+  "togglableStairs": [
+    { "id": "ts_20_2", "x": 20, "topY": 2, "leverId": "lev_19_0" },
+    { "id": "ts_17_6", "x": 17, "topY": 6, "leverId": "lev_13_4" },
+    { "id": "ts_7_8", "x": 7, "topY": 8, "leverId": "lev_10_8" },
+    { "id": "ts_7_12", "x": 7, "topY": 12, "leverId": "lev_2_12" }
+  ],
+  "doors": [
+    { "id": "door_pair_3_8_a", "pairId": "pair_3_8", "x": 3, "topY": 8, "color": "#00E5FF" },
+    { "id": "door_pair_3_8_b", "pairId": "pair_3_8", "x": 3, "topY": 12, "color": "#00E5FF" }
+  ]
+}
