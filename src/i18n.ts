@@ -60,6 +60,8 @@ export interface Translation {
   loadingTower: (n: number) => string;
   loadingGems: (n: number) => string;
   loadingText: string;
+  /** Warstwa oczekiwania przy powrocie (menu / wybor poziomu / edytor). */
+  loadingBack: string;
   // Help modal
   helpTitle: string;
   helpIntro: (floors: number, levels: number) => string;
@@ -169,6 +171,7 @@ export const translations: Record<Lang, Translation> = {
     loadingTower: (n) => `Wieża ${n}`,
     loadingGems: (n) => `Znajdź ${n} klejnotów`,
     loadingText: "Wczytuje...",
+    loadingBack: "Powrót...",
     helpTitle: "INSTRUKCJA",
     helpIntro: (floors, levels) => `Wspinaj się po wieży, znajdź wszystkie klejnoty aby móc odkrywać następne poziomy. Glut Żelek jest bardzo leniwy, liczy na to, że dotrzesz na szczyt wieży niewiele się męcząc. Żelek lubi schodzić po schodach, jeździć windą i przechodzić przez drzwi teleportacyjne. Nienawidzi skakać! Gra zapamiętuje najlepsze wyniki (ilośc skoków i czas). Każdy poziom liczy ${floors} pięter. Łącznie ${levels} poziomów. Inspiracją jest gra na komputer C64 "NEBULUS" z 1987r. John M. Phillips'a.`,
     elementsTitle: "ELEMENTY WIEŻY:",
@@ -272,6 +275,7 @@ export const translations: Record<Lang, Translation> = {
     loadingTower: (n) => `Tower ${n}`,
     loadingGems: (n) => `Find ${n} gems`,
     loadingText: "Loading...",
+    loadingBack: "Returning...",
     helpTitle: "INSTRUCTION",
     helpIntro: (floors, levels) => `Climb the tower and find gems to unlock the next levels. Jelly Slime is very lazy and is counting on you to reach the top of the tower with minimal effort. Jelly likes to walk down stairs, ride the elevator, and go through teleportation doors. He hates jumping! The game saves your best scores (number of jumps and time). Each level has ${floors} floors. There are ${levels} levels in total. The author's main inspiration is the 1987 C64 computer game “NEBULUS” by John M. Phillips.`,
     elementsTitle: "TOWER ELEMENTS:",
