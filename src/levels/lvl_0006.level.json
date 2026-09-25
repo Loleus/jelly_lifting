@@ -9,16 +9,11 @@
     { "id": "st-start", "x": 0, "topY": 0, "count": 3 },
     { "id": "st-summit", "x": 12, "topY": 48, "count": 5 },
     { "id": "st_5_0", "x": 5, "topY": 0, "count": 17 },
-    { "id": "st_6_5", "x": 6, "topY": 5, "count": 3 },
     { "id": "st_23_5", "x": 23, "topY": 5, "count": 5 },
-    { "id": "st_16_9.5", "x": 16, "topY": 9.5, "count": 1 },
     { "id": "st_10_9.5", "x": 10, "topY": 9.5, "count": 1 },
     { "id": "st_18_5", "x": 18, "topY": 5, "count": 3 },
-    { "id": "st_10_5", "x": 10, "topY": 5, "count": 1 },
     { "id": "st_16_5", "x": 16, "topY": 5, "count": 1 },
-    { "id": "st_15_11", "x": 15, "topY": 11, "count": 1 },
     { "id": "st_11_11", "x": 11, "topY": 11, "count": 1 },
-    { "id": "st_13_13", "x": 13, "topY": 13, "count": 1 },
     { "id": "st_10_17.5", "x": 10, "topY": 17.5, "count": 2 },
     { "id": "st_18_19.5", "x": 18, "topY": 19.5, "count": 1 },
     { "id": "st_8_19.5", "x": 8, "topY": 19.5, "count": 1 },
@@ -44,8 +39,6 @@
     { "id": "st_13_33.5", "x": 13, "topY": 33.5, "count": 1 },
     { "id": "st_17_6.5", "x": 17, "topY": 6.5, "count": 1 },
     { "id": "st_19_8.5", "x": 19, "topY": 8.5, "count": 1 },
-    { "id": "st_12_12.5", "x": 12, "topY": 12.5, "count": 1 },
-    { "id": "st_14_12.5", "x": 14, "topY": 12.5, "count": 1 },
     { "id": "st_23_41.5", "x": 23, "topY": 41.5, "count": 2 },
     { "id": "st_22_43", "x": 22, "topY": 43, "count": 1 },
     { "id": "st_door_2_42", "x": 2, "topY": 41.5, "count": 1 },
@@ -61,10 +54,13 @@
     { "id": "st_19_45.5", "x": 19, "topY": 45.5, "count": 2 },
     { "id": "st_18_43.5", "x": 18, "topY": 43.5, "count": 2 },
     { "id": "st_17_16", "x": 17, "topY": 16, "count": 17 },
-    { "id": "st_3_23.5", "x": 3, "topY": 23.5, "count": 5 }
+    { "id": "st_3_23.5", "x": 3, "topY": 23.5, "count": 5 },
+    { "id": "st_10_5", "x": 10, "topY": 5, "count": 2 },
+    { "id": "st_13_11", "x": 13, "topY": 11, "count": 2 }
   ],
   "elevators": [
-    { "id": "el_1_29.5", "x": 1, "width": 1.2, "yMin": 29.5, "yMax": 41.5, "speed": 0.75, "phase": 0 }
+    { "id": "el_1_29.5", "x": 1, "width": 1.2, "yMin": 29.5, "yMax": 41.5, "speed": 0.75, "phase": 0 },
+    { "id": "el_12_11", "x": 12, "width": 1.2, "yMin": 11, "yMax": 17.5, "speed": 0.75, "phase": 0 }
   ],
   "gems": [
     { "id": "g_3_5.5", "x": 3.5, "y": 5.5 },
@@ -80,15 +76,22 @@
   ],
   "springs": [
     { "id": "sp_5_0", "x": 5, "topY": 0, "bounceForce": 18.5 },
-    { "id": "sp_21_0", "x": 21, "topY": 0, "bounceForce": 18.5 },
-    { "id": "sp_13_13", "x": 13, "topY": 13, "bounceForce": 18.5 }
+    { "id": "sp_21_0", "x": 21, "topY": 0, "bounceForce": 18.5 }
   ],
   "enemies": [
     { "id": "en_patrol_20_16", "xCenter": 20, "y": 16.55, "behavior": "patrol", "amplitude": 3, "speed": 1.4 },
     { "id": "en_patrol_6_16", "xCenter": 6, "y": 16.55, "behavior": "patrol", "amplitude": 3, "speed": 1.4 },
     { "id": "en_bounce_3_16", "xCenter": 3, "y": 16.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 },
     { "id": "en_bounce_23_16", "xCenter": 23, "y": 16.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 },
-    { "id": "en_patrol_19_44", "xCenter": 19, "y": 44.05, "behavior": "patrol", "amplitude": 4, "speed": 1.4 }
+    { "id": "en_patrol_19_44", "xCenter": 19, "y": 44.05, "behavior": "patrol", "amplitude": 4, "speed": 1.4 },
+    { "id": "en_patrol_9_0", "xCenter": 9, "y": 0.55, "behavior": "patrol", "amplitude": 3, "speed": 1.4 },
+    { "id": "en_patrol_17_0", "xCenter": 17, "y": 0.55, "behavior": "patrol", "amplitude": 3, "speed": 1.4 },
+    { "id": "en_bounce_14_0", "xCenter": 14, "y": 0.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 },
+    { "id": "en_bounce_12_0", "xCenter": 12, "y": 0.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 },
+    { "id": "en_bounce_1_5", "xCenter": 1, "y": 5.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 },
+    { "id": "en_bounce_5_45", "xCenter": 5, "y": 45.05, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 },
+    { "id": "en_bounce_3_45", "xCenter": 3, "y": 45.05, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 },
+    { "id": "en_bounce_1_45", "xCenter": 1, "y": 45.05, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 }
   ],
   "checkpoints": [
     { "id": 1, "name": "Checkpoint 4", "floor": 18, "x": 15, "y": 17.5 },
@@ -97,9 +100,7 @@
     { "id": 4, "name": "Checkpoint 1", "floor": 42, "x": 3, "y": 41.5 }
   ],
   "collapsingStairs": [
-    { "id": "cs_11_5", "x": 11, "topY": 5 },
     { "id": "cs_13_5", "x": 13, "topY": 5 },
-    { "id": "cs_15_5", "x": 15, "topY": 5 },
     { "id": "cs_20_23.5", "x": 20, "topY": 23.5 },
     { "id": "cs_21_44.5", "x": 21, "topY": 44.5 }
   ],
