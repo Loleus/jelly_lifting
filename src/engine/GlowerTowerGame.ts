@@ -1801,6 +1801,105 @@
 //     this.scene.traverse((obj) => { if (obj instanceof THREE.Mesh) { obj.geometry.dispose(); if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose()); else obj.material.dispose(); } });
 //   }
 // }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { Water } from "three/addons/objects/Water.js";
@@ -1947,8 +2046,12 @@ export class GlowerTowerGame {
   private towerMesh!: THREE.Mesh;
   /** Dolna kotwica gradientu osadu (pelna sila) — wspolna dla muru i stopni. */
   private get groundTintBottomY(): number { return this.waterLevel - 0.45; }
-  /** Gorna kotwica gradientu osadu (krycie 0) — „na wysokosci odpowiadajacej”. */
-  private get groundTintTopY(): number { return this.waterLevel + 5.6; }
+  /**
+   * Gorna kotwica gradientu osadu (krycie 0). Pas ma ~5 j.: 0.45 j. ponizej
+   * lustra (zlacze ukryte pod woda) i ~4.6 j. nad woda — dzieki temu czern,
+   * nasycona zielen i zanik mieszcza sie w widocznej czesci sciany.
+   */
+  private get groundTintTopY(): number { return this.waterLevel + 4.6; }
   private floorMesh!: THREE.Mesh;
   private sky!: Sky;
   private water!: Water;
@@ -2282,27 +2385,28 @@ export class GlowerTowerGame {
     // wysokość towerTotalHeight / repeatV (identycznie jak UV w createTowerMaterial).
     // Dół gradientu leży pod lustrem wody, więc złącza nie widać — osad wychodzi
     // spod wody i zanika do zera, w górnej krawędzi wchodząc w kolor Glutka.
-    const wallRowHeight = towerTotalHeight / Math.max(1, Math.ceil(towerTotalHeight / 6));
-    const wallBottomY = this.towerMesh.position.y - towerTotalHeight / 2;
-    const firstRowTopY = wallBottomY + wallRowHeight;
     applyMossGradient(towerWallMaterial, {
       // UWAGA: woda three.js jest NIEPRZEZROCZYSTA (alpha = 1.0), wiec wszystko
       // ponizej lustra (-1.2) jest niewidoczne. Dlatego 0.45 j. ponizej lustra
-      // kladziemy pelna sile osadu (zlacze ukryte pod woda), a cala rampa leci
-      // NAD woda: CZARNY pas przy linii wody -> ZIELEN Glutka, z zanikiem do
-      // zera przy topY. Rzad kafli [wallBottomY .. firstRowTopY] to referencja.
+      // kladziemy pelna sile osadu (zlacze ukryte pod woda), a reszta rampy leci
+      // NAD woda: CZARNY pas przy linii wody -> ZIELEN Glutka -> zanik do zera.
       bottomY: this.groundTintBottomY,
-      topY: Math.max(this.groundTintTopY, firstRowTopY + 5.8),
+      topY: this.groundTintTopY,
       waterY: this.waterLevel,
-      strength: 1.0,
+      // 2.0: krycie osadu w shaderze wygasa liniowo (1 - t) i JEDNOCZESNIE
+      // przejscie w zielen konczy sie dopiero przy t = 0.9, wiec przy 1.0 tinta
+      // nigdy nie osiaga pelnej sily nad woda i wieza wyglada na slabo zielona.
+      // Wartosc 2.0 nasyca krycie (clamp) w dolnej polowie pasa, wiec przy wodzie
+      // widac czern, a kilkanascie jednostek wyzej pelna zielen Glutka.
+      strength: 2.0,
       wet: 0.9,
       // Gradient CZARNY -> ZIELONY Glutka (bez szarego albedo — to dawalo plamy).
       mudColor: "#000000",
       slimeColor: "#4ade80", // kraniec ZIELONY = kolor Glutka
-      // Podloga albedo w pasie: czern nie jest zerem, wiec zacieniona strona
-      // wiezy odbija hemisfere i jest czytelna. Barwiona zielen (uMossSlime),
-      // wiec wyglada jak mokry, czarno-zielony osad — nie jak szare plamy.
-      shadowFloor: 0.3,
+      // 0.06: minimalna podłoga albedo, żeby czarny koniec gradientu nie był
+      // zerem (0 × światło = 0). Wyższa wartość wypiera czerń zielENIĄ i rampą
+      // przestaje być czytelna.
+      shadowFloor: 0.06,
     });
     this.towerMesh.receiveShadow = true; this.towerMesh.castShadow = true; this.towerMesh.frustumCulled = false;
     this.scene.add(this.towerMesh);
@@ -2389,18 +2493,15 @@ export class GlowerTowerGame {
       bottomY: this.groundTintBottomY,
       topY: this.groundTintTopY,
       waterY: this.waterLevel,
-      // strength 1.0: pelny gradient, zeby ZIELEN na gornej krawedzi pasa byla
-      // nasycona (0.8 ja rozmywalo). Czytelnosc parteru daje podloga albedo
-      // (barwiona zielen, wiec nie szarzeje) + poziomu fill, bez rozjasniania
-      // calego swiata.
-      strength: 1.0,
+      // 2.0: jak na murze — nasyca krycie w dolnej polowie pasa, wiec dolne
+      // stopnie sa czarne, a wyzej widac pelna zielen Glutka.
+      strength: 2.0,
       wet: 0.9,
       quantizeStep: 0.5,
       mudColor: "#000000", // parter: czarna tinta (jak w zamowieniu)
       slimeColor: "#4ade80", // gora pasa: zielen Glutka przy kryciu 0
-      // 0.2: podłoga albedo — stopnie mają być ciemne jak mokry kamień, ale
-      // czytelne; połysk zapewnia mokrość, więc albedo nie musi być jasne.
-      shadowFloor: 0.2,
+      // 0.08: jak na murze — dolny stopień ma być czarny, nie zielonkawy.
+      shadowFloor: 0.08,
     });
     this.stairsInstancedMesh = new THREE.InstancedMesh(stairGeoUnit, stairMat, prepared.length);
     this.stairsInstancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -2616,11 +2717,11 @@ export class GlowerTowerGame {
         bottomY: this.groundTintBottomY,
         topY: this.groundTintTopY,
         waterY: this.waterLevel,
-        strength: 1.0,
+        // 2.0: jak na stopniach statycznych — te schodki musza byc tak samo
+        // ciemne w pasie, a kolor stanu dzwigni pozostaje rozroznialny (0.25).
+        strength: 2.0,
         wet: 0.9,
-        // 0.32: przyciemnienie tinty stopnia tak, by czerwony/zielony stan
-        // dźwigni pozostał czytelny w cieniu.
-        darkMin: 0.32,
+        darkMin: 0.25,
       });
       const mesh = new THREE.Mesh(tsGeo, mat);
       // Skala X = szerokosc stopnia (jak macierz instancji schodkow statycznych),
@@ -2642,12 +2743,12 @@ export class GlowerTowerGame {
       bottomY: this.groundTintBottomY,
       topY: this.groundTintTopY,
       waterY: this.waterLevel,
-      strength: 1.0, // pelny gradient jak na stopniach (nasycona zielen)
+      strength: 2.0, // jak na stopniach: nasycona zielen nad woda
       wet: 0.9,
       quantizeStep: 0.5,
       mudColor: "#000000",
       slimeColor: "#4ade80",
-      shadowFloor: 0.2, // jak na zwykłych stopniach: ciemno, ale czytelnie
+      shadowFloor: 0.08, // jak na zwykłych stopniach: czerń na dnie gradientu
     });
     const sAL = (TAU * TOWER_RADIUS) / CIRCUMFERENCE_STEPS;
     const csWidth = sAL * 1.02;

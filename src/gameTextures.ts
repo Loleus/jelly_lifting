@@ -650,26 +650,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import * as THREE from "three";
 
 // ---------------------------------------------------------------------------
@@ -729,6 +709,10 @@ function loadTextureSafe(textureLoader: THREE.TextureLoader, url: string): THREE
         ? THREE.NoColorSpace
         : THREE.SRGBColorSpace;
       texture.needsUpdate = true;
+      // Diagnostyka: brak pliku = jednolity kolor (dla "nrm" płaski niebieski,
+      // czyli powierzchnia BEZ rzeźby). Ten komunikat mówi wprost, którego
+      // assetu brakuje, zamiast zgadywać ze screenu. Do usunięcia w każdej chwili.
+      console.warn(`[textures] brak pliku — uzywam jednolitego fallbacku: ${url}`);
     } catch {
       // brak wsparcia canvas — zostawiamy domyślną (czarną) teksturę.
     }
@@ -937,9 +921,10 @@ export interface MossGradientOptions {
   darkMin?: number;
   /**
    * Minimalne albedo w pasie osadu (0 = brak podłogi). Czysta czerń ma albedo
-   * 0, a 0 × światło = 0, więc zacieniona strona wieży nie odbijałaby żadnego
-   * światła. Podłoga jest barwiona zielenią Glutka (uMossSlime), dzięki czemu
-   * ciemny pas czyta się jako mokry, czarno-zielony osad, a nie jako szarość.
+   * 0, a 0 × światło = 0, więc dolny koniec gradientu nie odbijałby żadnego
+   * światła. Wartość musi być MAŁA (0.05–0.1): podłoga jest barwiona zielenią
+   * Glutka, więc wyższa zastępuje czerń zielenią i rampa czarny -> zielony
+   * przestaje być czytelna.
    */
   shadowFloor?: number;
   /** Kolor CZARNY (dolny koniec gradientu, pełna siła). */
@@ -1042,12 +1027,17 @@ export function applyMossGradient(material: THREE.Material, options: MossGradien
         vec3 mossFactorFromT(float t) {
           return mix(uMossColor, uMossSlime, smoothstep(0.0, 0.9, t));
         }
-        // Ile „mokro” na danej wysokości (1 przy wodzie -> 0 na górnej krawędzi).
+        // Ile „mokro” na danej wysokości (1 w pasie, 0 przy jego górnej krawędzi).
+        // W trybie „moss” nosnikiem mokrości jest samo krycie osadu: ono już
+        // wygasa 1 -> 0 przez cały pas, więc dodatkowe tłumienie wysokością
+        // dawałoby podwójny spadek i środek pasa byłby suchy (stopnie na
+        // gradiencie wyglądały na wysuszone). W trybie „darken” (stopnie
+        // przełączane) wysokość jest nadal potrzebna, bo krycie tam nie maleje.
         float mossWetness() {
           float t = mossBandT();
+          if (uMossMode < 0.5) return clamp(mossCoverageFromT(t) * uMossWet, 0.0, 1.0);
           float slope = 1.0 - smoothstep(uMossWaterY - 0.5, uMossTopY, vMossWorldY);
-          float amount = uMossMode < 0.5 ? mossCoverageFromT(t) : (1.0 - t);
-          return clamp(amount * uMossWet * max(slope, 0.0), 0.0, 1.0);
+          return clamp((1.0 - t) * uMossWet * max(slope, 0.0), 0.0, 1.0);
         }`
       )
       .replace(
@@ -1075,13 +1065,13 @@ export function applyMossGradient(material: THREE.Material, options: MossGradien
       .replace(
         "#include <roughnessmap_fragment>",
         `#include <roughnessmap_fragment>
-        // Mokry połysk: niższa chropowatość = ostrzejszy refleks. Piony (ściana
-        // wieży, boki stopni) świecą minimalnie mocniej niż góra stopnia, żeby
-        // krawędzie czytały się jako obmyte wodą.
+        // Mokry połysk: niższa chropowatość = ostrzejszy refleks słońca na
+        // obmytej wodą powierzchni. Piony (ściana wieży, boki stopni) świecą
+        // minimalnie mocniej niż góra stopnia.
         {
           float wet = mossWetness();
           float vertical = 1.0 - clamp(abs(vMossUp), 0.0, 1.0);
-          float target = mix(0.46, 0.38, vertical);
+          float target = mix(0.38, 0.30, vertical);
           roughnessFactor = mix(roughnessFactor, target, wet);
         }`
       );
@@ -1092,7 +1082,7 @@ export function applyMossGradient(material: THREE.Material, options: MossGradien
   // statyczne, zapadnie i schodki chowane dzieliłyby JEDEN program i JEDEN
   // zestaw uniformów (ustawienia jednego typu przeciekałyby na pozostałe).
   const cacheKey = [
-    "moss-gradient-v18",
+    "moss-gradient-v19",
     options.mode === "darken" ? "darken" : "moss",
     options.bottomY.toFixed(3),
     options.topY.toFixed(3),
@@ -1178,19 +1168,26 @@ export function createCollapsingStairMaterial(): THREE.MeshStandardMaterial {
   const collapseColorUrl = new URL("./textures/collapse/STEP_col.jpg", import.meta.url).href;
   const collapseNormalUrl = new URL("./textures/collapse/STEP_nrm.jpg", import.meta.url).href;
 
-  // Ta sama siatka UV i te same parametry samplowania co schodek statyczny
-  // (createStairsMaterial), żeby zapadnia nie wyglądała jak inny materiał.
+  // repeat 2: wzór kamienia jest o połowę mniejszy niż na schodku statycznym
+  // (UV bryły zapadni jest identyczne jak w instancjach stopni, więc gęstość
+  // wzoru reguluje wyłącznie ten mnożnik).
   const collapseOpts = {
     wrapS: THREE.RepeatWrapping,
     wrapT: THREE.RepeatWrapping,
-    repeat: [1, 1] as [number, number],
+    repeat: [2, 2] as [number, number],
     anisotropy: 7,
   };
 
   return new THREE.MeshStandardMaterial({
     map: cachedColorMap(collapseColorUrl, collapseOpts),
     normalMap: cachedNormalMap(collapseNormalUrl, collapseOpts),
-    normalScale: new THREE.Vector2(10, 10),
+    // 3: czytelna rzeźba kamienia. three mnoży TYLKO składowe styczne:
+    //   mapN.xy *= normalScale;  normal = normalize( tbn * mapN );
+    // Składowa Z tekstury wynosi maksymalnie 1, więc powyżej ~4 styczne XY
+    // zaczynają dominować i normalna wychodzi prawie pozioma — oświetlenie
+    // rozjeżdża się, a po uśrednieniu w kadrze powierzchnia wygląda płasko.
+    // Wartości 10-30 (używane wcześniej) to właśnie ten efekt.
+    normalScale: new THREE.Vector2(3, 3),
     roughness: 1.0,
     // Bez environment mapy metal zabiera diffuse, a refleksu nie ma z czego
     // policzyć — zapadnia przestawałaby reagować na światło.
