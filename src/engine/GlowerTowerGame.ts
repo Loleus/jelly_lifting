@@ -1919,6 +1919,7 @@ import {
   JUMP_SPEED,
   GRAVITY,
   TOWER_RADIUS,
+  TOWER_WALL_RADIUS,
   PLATFORM_THICKNESS,
   PLATFORM_DEPTH,
   TAU,
@@ -2136,7 +2137,7 @@ export class GlowerTowerGame {
       Math.sin(stepToTheta(level.start.x)),
       Math.cos(stepToTheta(level.start.x))
     );
-    this.culler.setTower(TOWER_RADIUS, -6, this.towerHeight);
+    this.culler.setTower(TOWER_WALL_RADIUS, -6, this.towerHeight);
     this.initThree();
     this.buildWorld();
     this.player = new PlayerRig(this.scene);
@@ -2354,7 +2355,7 @@ export class GlowerTowerGame {
     // wieży rzucany na wodę.
     const shadowHalf = Math.max(
       24,
-      (this.towerHeight - this.sunLight.target.position.y) * elevationCos + TOWER_RADIUS + PLATFORM_DEPTH + 2
+      (this.towerHeight - this.sunLight.target.position.y) * elevationCos + TOWER_WALL_RADIUS + PLATFORM_DEPTH + 2
     );
     const shadowCamera = this.sunLight.shadow.camera as THREE.OrthographicCamera;
     shadowCamera.left = -shadowHalf; shadowCamera.right = shadowHalf;
@@ -2403,7 +2404,7 @@ export class GlowerTowerGame {
       distortionScale: 0.8, fog: this.scene.fog !== undefined,
     });
     this.water.material.onBeforeCompile = (shader) => {
-      shader.uniforms.uTowerRadius = { value: TOWER_RADIUS };
+      shader.uniforms.uTowerRadius = { value: TOWER_WALL_RADIUS };
       shader.fragmentShader = shader.fragmentShader.replace("void main() {", `uniform float uTowerRadius;\nvoid main() {`);
       shader.fragmentShader = shader.fragmentShader.replace(
         "vec4 noise = getNoise( worldPosition.xz * size );",
@@ -2443,10 +2444,10 @@ export class GlowerTowerGame {
     this.floorMesh.receiveShadow = true;
     this.scene.add(this.water);
     const towerTotalHeight = this.towerHeight + 6;
-    const towerWallRadius = TOWER_RADIUS + 0.12;
+    const towerWallRadius = TOWER_WALL_RADIUS;
     const towerWallMaterial = createTowerMaterial(undefined, towerWallRadius, towerTotalHeight);
     this.towerMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(TOWER_RADIUS, TOWER_RADIUS + 0.18, towerTotalHeight, 48, 1, false),
+      new THREE.CylinderGeometry(TOWER_WALL_RADIUS, TOWER_WALL_RADIUS, towerTotalHeight, 48, 1, false),
       towerWallMaterial
     );
     this.towerMesh.position.y = this.towerHeight / 2 - 3;
@@ -2481,7 +2482,7 @@ export class GlowerTowerGame {
     this.towerMesh.castShadow = true; this.towerMesh.frustumCulled = false;
     this.scene.add(this.towerMesh);
     const foamRing = new THREE.Mesh(
-      new THREE.TorusGeometry(TOWER_RADIUS + 0.32, 0.06, 10, 48),
+      new THREE.TorusGeometry(TOWER_WALL_RADIUS + 0.14, 0.06, 10, 48),
       // Bylo: szary/popielaty pasek (#d6ecff, opacity 0.18) dookola wiezy na
       // poziomie wody. Teraz: CZARNY pas przy podstawie wiezy.
       new THREE.MeshStandardMaterial({ color: "#000000", roughness: 0.92, transparent: true, opacity: 0.35, depthWrite: false })

@@ -50,6 +50,7 @@ export function pickResolutionProfile(vw: number, vh: number): ResolutionProfile
 export const CIRCUMFERENCE_STEPS = 24;
 export const STEP_HEIGHT = 1;
 export const TOWER_RADIUS = 6;
+export const TOWER_WALL_RADIUS = TOWER_RADIUS + 0.18;
 export const PLATFORM_THICKNESS = 0.35;
 export const PLATFORM_DEPTH = 2.4;
 export const TAU = Math.PI * 2;
