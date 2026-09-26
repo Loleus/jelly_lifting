@@ -35,7 +35,7 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
   devSlot,
 }) => (
   <>
-    <div className="pointer-events-none fixed inset-0 z-30 bg-gradient-to-b from-[#050b14]/30 via-[#0b1520]/22 to-[#050b14]/35" />
+    <div className="pointer-events-none fixed inset-0 z-30 " />
     <div className="pointer-events-none fixed inset-0 z-40 animate-in fade-in duration-500">
       {/* Language switcher top-left */}
       <div className="pointer-events-auto absolute left-1.5 top-1.5 z-10 flex items-center gap-1.5 sm:left-2 sm:top-2 sm:gap-2 [@media(max-height:500px)]:gap-1.5">

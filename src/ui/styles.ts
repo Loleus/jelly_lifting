@@ -5,7 +5,7 @@
 
 /** Top-right / top-left icon button in menu + HUD. */
 export const ICON_BTN =
-  "flex h-8 w-8 items-center shadow-lg justify-center rounded-lg bg-black/70 shadow-lg transition-transform hover:scale-105 active:scale-95 sm:h-10 sm:w-10 [@media(max-height:500px)]:h-7 [@media(max-height:500px)]:w-7";
+  "flex h-8 w-8 items-center shadow-lg justify-center rounded-lg bg-gray-700 shadow-lg transition-transform hover:scale-105 active:scale-95 sm:h-10 sm:w-10 [@media(max-height:500px)]:h-7 [@media(max-height:500px)]:w-7";
 
 /** Full-screen modal backdrop (dark blur). */
 export const MODAL_BACKDROP =
