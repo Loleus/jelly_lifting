@@ -1888,18 +1888,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { Water } from "three/addons/objects/Water.js";
@@ -2038,6 +2026,15 @@ export class GlowerTowerGame {
   private readonly flagVisibility = new FlagVisibility();
   private sceneMode: "menu" | "play" = "menu";
   private ambientAudioActive = false;
+  /** Znacznik czasu ostatniego zebrania zrodel dzwieku (rytm 100 ms). */
+  private ambientSourcesAt = 0;
+  /** Ostatnio wyslane do HUD wartosci — wysylamy tylko to, co widoczne. */
+  private hudLastSecond = -1;
+  private hudLastFloor = -1;
+  private hudLastScore = -1;
+  private hudLastGems = -1;
+  private hudLastJumps = -1;
+  private hudLastStatus: GameStatus | null = null;
   private player!: PlayerRig;
   private cameraRig!: CameraRig;
   private particles!: ParticleSystem;
@@ -2367,6 +2364,12 @@ export class GlowerTowerGame {
         }`
       );
     };
+    // Odbicie wody (water.onBeforeRender) renderuje cala scene do tekstury
+    // 512x512 przy kazdym wywolaniu — to najdrozsza pozycja klatki po mapie
+    // cienia. Probne liczenie go co druga klatke zostalo WYCOFANE: mapa cienia
+    // i tak musi byc odswiezana co klatke, wiec oszczednosc byla polowiczna,
+    // a odbicie klatkalo w rytm polowy tempa (widoczne jako skoki animacji).
+    // Jesli trzeba ciac dalej, to najpierw textureWidth/Height ponizej.
     this.water.rotation.x = -Math.PI / 2;
     this.water.position.y = this.waterLevel;
     this.floorMesh = this.water as unknown as THREE.Mesh;
@@ -3491,17 +3494,47 @@ export class GlowerTowerGame {
       if (this.sky && (this.sky as any).material?.uniforms?.time) (this.sky as any).material.uniforms.time.value = time * 0.00005;
       if (this.water && (this.water.material as any).uniforms?.time) (this.water.material as any).uniforms.time.value += frameDelta;
 
-      if (this.composer) this.composer.render(); else this.renderer.render(this.scene, this.camera);
+      // Mapa cienia MUSI odswiezac sie w KAZDEJ klatce gry. Przy autoUpdate
+      // false three pomija przebieg, a needsUpdate jest zerowane po kazdym
+      // przebiegu (WebGLShadowMap.js), wiec nie da sie nim wymusic odswiezania
+      // co druga klatke — cien stalby w miejscu i przyklejal sie do podloza.
+      // W menu mapa jest zamrozona w setSceneMode, bo scena sie tam nie zmienia.
+      if (this.sceneMode === "play") this.renderer.shadowMap.autoUpdate = true;
+      if (this.composer && this.bloomPass.enabled) this.composer.render();
+      else this.renderer.render(this.scene, this.camera);
       this.playerHudTimer += frameDelta;
-      // HUD to koszt dla Reacta: kazde wywolanie u konsumenta konczy sie
-      // setState + reconciliacja drzewa, a obiekty Reacta tworza grafy
-      // cykliczne, ktore napedzaja cycle collector Gecko (profil CC:
-      // MANY_SUSPECTED, dziesiatki ms na slice -> czkawki).
-      // W menu/wygranej/przegranej HUD nie jest widoczny, a stan gracza stoi,
-      // wiec nie ma po co go wysylac. W trybie gry bez zmian: 10 Hz.
+      // HUD to najdroższa pozycja pętli po stronie CPU: każde wywołanie u
+      // konsumenta kończy się setState i reconciliacją drzewa Reacta, a fibery
+      // tworzą graf cykliczny — to on nakręca cycle collector i major GC
+      // (profil: reason CC_FINISHED, mark 23 ms). Dlatego stan wysyłamy tylko
+      // wtedy, gdy zmieni się COŚ WIDOCZNEGO:
+      //   * zegar jest wyświetlany jako m:ss (formatTime), więc zaokrąglamy go
+      //     do pełnych sekund — 10 Hz na podsekundowe ułamki było marnowane,
+      //   * wynik, klejnoty, skoki, piętro i status zmieniają się rzadko
+      //     (zdarzenia), więc ich zmiana i tak wyzwala natychmiastową wysyłkę.
+      // Efekt: ~1 wysyłka/s zamiast 10, przy identycznym obrazie HUD.
       if (this.playerHudTimer >= 0.1) {
         this.playerHudTimer = 0;
-        if (this.sceneMode === "play") this.onPlayerStateUpdate?.(this.playerState);
+        if (this.sceneMode === "play") {
+          const hudSecond = Math.floor(this.playerState.elapsedTime);
+          const hudFloor = Math.floor(this.playerState.y);
+          if (
+            hudSecond !== this.hudLastSecond ||
+            hudFloor !== this.hudLastFloor ||
+            this.playerState.score !== this.hudLastScore ||
+            this.playerState.gemsCollected !== this.hudLastGems ||
+            this.playerState.jumpCount !== this.hudLastJumps ||
+            this.playerState.status !== this.hudLastStatus
+          ) {
+            this.hudLastSecond = hudSecond;
+            this.hudLastFloor = hudFloor;
+            this.hudLastScore = this.playerState.score;
+            this.hudLastGems = this.playerState.gemsCollected;
+            this.hudLastJumps = this.playerState.jumpCount;
+            this.hudLastStatus = this.playerState.status;
+            this.onPlayerStateUpdate?.(this.playerState);
+          }
+        }
       }
     };
     this.animFrameId = window.requestAnimationFrame(loop);
@@ -3577,6 +3610,13 @@ export class GlowerTowerGame {
       return;
     }
     this.ambientAudioActive = true;
+    // collectAmbientSources tworzy tablice i po jednym obiekcie na kazde zrodlo
+    // (wrog + winda), a soundEngine.updateAmbient i tak przyjmuje je najwyzej co
+    // 100 ms — zbieranie ich 60x na sekunde to czysta produkcja smieci dla GC.
+    // Ten sam rytm co odbiorca: zero zbednych alokacji, brak zmiany dzwieku.
+    const now = performance.now();
+    if (now - this.ambientSourcesAt < 100) return;
+    this.ambientSourcesAt = now;
     soundEngine.updateAmbient(collectAmbientSources(this.hazards, this.elevators, this.playerState.x, this.playerState.y, this.camera));
   }
 

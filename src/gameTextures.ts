@@ -648,8 +648,6 @@
 
 
 
-
-
 import * as THREE from "three";
 
 // ---------------------------------------------------------------------------
@@ -1004,40 +1002,28 @@ export function applyMossGradient(material: THREE.Material, options: MossGradien
         varying float vMossAngle;
         varying float vMossUp;
 
+        // Pasmo i krycie osadu liczone RAZ na piksel (w <map_fragment>) i zużywane
+        // ponownie w <roughnessmap_fragment>. Wcześniej każde z nich ciągnęło
+        // własny łańcuch: floor + dzielenie + dwa sin + dwa smoothstep — czyli
+        // dwa razy więcej pracy na każdym fragmencie muru i stopni, także wtedy,
+        // gdy pas osadu jest poza kadrem. Wynik jest identyczny.
+        float mossT = 0.0;
+        float mossCoverage = 0.0;
+
         // 0.0 = dół (pełne krycie), 1.0 = góra (zero osadu).
         // uMossStep > 0 kwantyzuje wysokość, więc kolor i krycie są stałe
         // w obrębie progu — daje to dyskretne odcienie kolejnych stopni.
-        float mossBandT() {
+        float mossComputeT() {
           float h = vMossWorldY;
           if (uMossStep > 0.0) h = uMossBottomY + floor((h - uMossBottomY) / uMossStep) * uMossStep;
           return clamp((h - uMossBottomY) / max(0.001, uMossTopY - uMossBottomY), 0.0, 1.0);
         }
-        // Poszarpany, organiczny brzeg osadu.
-        float mossRagged() {
+        // „Opacity” osadu dla danego t, z poszarpanym, organicznym brzegiem.
+        float mossComputeCoverage(float t) {
           float a = 0.5 + 0.5 * sin(vMossAngle * 7.0 - vMossWorldY * 4.1);
           float b = 0.5 + 0.5 * sin(vMossAngle * 2.0 + vMossWorldY * 1.7 + 1.3);
-          return clamp(a * 0.62 + b * 0.38, 0.0, 1.0);
-        }
-        // „Opacity” osadu z gotowego t — bez ponownego liczenia pasma.
-        float mossCoverageFromT(float t) {
-          float ragged = mix(1.0, 0.70 + 0.30 * mossRagged(), smoothstep(0.30, 0.70, t));
+          float ragged = mix(1.0, 0.70 + 0.30 * clamp(a * 0.62 + b * 0.38, 0.0, 1.0), smoothstep(0.30, 0.70, t));
           return clamp((1.0 - t) * ragged, 0.0, 1.0);
-        }
-        // MNOŻNIK koloru z gotowego t: CZARNY przy dnie -> ZIELONY Glutka.
-        vec3 mossFactorFromT(float t) {
-          return mix(uMossColor, uMossSlime, smoothstep(0.0, 0.9, t));
-        }
-        // Ile „mokro” na danej wysokości (1 w pasie, 0 przy jego górnej krawędzi).
-        // W trybie „moss” nosnikiem mokrości jest samo krycie osadu: ono już
-        // wygasa 1 -> 0 przez cały pas, więc dodatkowe tłumienie wysokością
-        // dawałoby podwójny spadek i środek pasa byłby suchy (stopnie na
-        // gradiencie wyglądały na wysuszone). W trybie „darken” (stopnie
-        // przełączane) wysokość jest nadal potrzebna, bo krycie tam nie maleje.
-        float mossWetness() {
-          float t = mossBandT();
-          if (uMossMode < 0.5) return clamp(mossCoverageFromT(t) * uMossWet, 0.0, 1.0);
-          float slope = 1.0 - smoothstep(uMossWaterY - 0.5, uMossTopY, vMossWorldY);
-          return clamp((1.0 - t) * uMossWet * max(slope, 0.0), 0.0, 1.0);
         }`
       )
       .replace(
@@ -1047,11 +1033,12 @@ export function applyMossGradient(material: THREE.Material, options: MossGradien
         // spodem, a spoiny i rysunek tekstury są widoczne także w czarnej strefie.
         //   moss   -> tinta CZARNY (parter) -> ZIELEŃ Glutka, krycie 1 -> 0
         //   darken -> zachowana tinta schodka jest tylko przyciemniana
-        // Bez rozgałęzień: pasmo (mossBandT) liczone raz na piksel i przekazane
-        // do obu funkcji; rozgałęzienie trybu jest jednorodne per materiał.
-        float mossT = mossBandT();
+        // Rozgałęzienie trybu jest jednorodne per materiał, więc jest darmowe.
+        mossT = mossComputeT();
+        mossCoverage = mossComputeCoverage(mossT);
         if (uMossMode < 0.5) {
-          vec3 osad = mix(vec3(1.0), mossFactorFromT(mossT), clamp(mossCoverageFromT(mossT) * uMossStrength, 0.0, 1.0));
+          vec3 factor = mix(uMossColor, uMossSlime, smoothstep(0.0, 0.9, mossT));
+          vec3 osad = mix(vec3(1.0), factor, clamp(mossCoverage * uMossStrength, 0.0, 1.0));
           // Podłoga albedo: czerń z zerowym albedo nie odbija światła, więc
           // zacieniona strona wieży byłaby nieczytelna. Barwiona zielenią, żeby
           // pas pozostał czarno-zielony, a nie szary.
@@ -1068,11 +1055,14 @@ export function applyMossGradient(material: THREE.Material, options: MossGradien
         // Mokry połysk: niższa chropowatość = ostrzejszy refleks słońca na
         // obmytej wodą powierzchni. Piony (ściana wieży, boki stopni) świecą
         // minimalnie mocniej niż góra stopnia.
+        // Używa mossT/mossCoverage policzonych wyżej — bez drugiego przejścia
+        // przez pasmo i poszarpany brzeg.
         {
-          float wet = mossWetness();
+          float wet = uMossMode < 0.5
+            ? mossCoverage
+            : (1.0 - mossT) * max(1.0 - smoothstep(uMossWaterY - 0.5, uMossTopY, vMossWorldY), 0.0);
           float vertical = 1.0 - clamp(abs(vMossUp), 0.0, 1.0);
-          float target = mix(0.38, 0.30, vertical);
-          roughnessFactor = mix(roughnessFactor, target, wet);
+          roughnessFactor = mix(roughnessFactor, mix(0.38, 0.30, vertical), clamp(wet * uMossWet, 0.0, 1.0));
         }`
       );
   };
@@ -1082,7 +1072,7 @@ export function applyMossGradient(material: THREE.Material, options: MossGradien
   // statyczne, zapadnie i schodki chowane dzieliłyby JEDEN program i JEDEN
   // zestaw uniformów (ustawienia jednego typu przeciekałyby na pozostałe).
   const cacheKey = [
-    "moss-gradient-v19",
+    "moss-gradient-v20",
     options.mode === "darken" ? "darken" : "moss",
     options.bottomY.toFixed(3),
     options.topY.toFixed(3),

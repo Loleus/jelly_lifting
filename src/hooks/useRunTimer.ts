@@ -40,10 +40,16 @@ export const useRunTimer = () => {
   const tick = () => {
     if (!timerRef.current.running) return;
     const now = performance.now();
-    if (now - lastUpdateRef.current >= 100) {
-      lastUpdateRef.current = now;
-      setDisplaySeconds((now - timerRef.current.startedAt) / 1000);
-    }
+    if (now - lastUpdateRef.current < 100) return;
+    lastUpdateRef.current = now;
+    const seconds = (now - timerRef.current.startedAt) / 1000;
+    // Zegar w HUD jest formatowany jako m:ss (całe sekundy — patrz formatTime),
+    // więc aktualizacja stanu co 100 ms nie zmienia ANI JEDNEGO piksela, a
+    // powoduje pełny re-render drzewa Reacta 10x na sekundę. Zwrócenie tej samej
+    // wartości daje bail-out Reacta, a alokowane wtedy obiekty (fibery, tablice
+    // hooków) są grafem cyklicznym — to one nakręcają cycle collector i major GC
+    // (profil: reason CC_FINISHED, mark 23 ms przy 38 MB churnu).
+    setDisplaySeconds((prev) => (Math.floor(prev) === Math.floor(seconds) ? prev : seconds));
   };
 
   /** Zatrzymuje stoper i zwraca dokładny czas (dokładność ms, bez zaokrąglenia). */
