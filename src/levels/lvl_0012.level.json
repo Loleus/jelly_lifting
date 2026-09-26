@@ -104,7 +104,9 @@
     { "id": "en_bounce_20_5", "xCenter": 20, "y": 5.55, "behavior": "bounce", "amplitude": 4, "moveSteps": 0, "speed": 1 },
     { "id": "en_patrol_3_45", "xCenter": 3, "y": 45.05, "behavior": "patrol", "amplitude": 3, "speed": 1.5 },
     { "id": "en_bounce_10_0", "xCenter": 10, "y": 0.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 },
-    { "id": "en_bounce_16_0", "xCenter": 16, "y": 0.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 }
+    { "id": "en_bounce_16_0", "xCenter": 16, "y": 0.55, "behavior": "bounce", "amplitude": 1, "moveSteps": 0, "speed": 1.2 },
+    { "id": "en_patrol_13_3", "xCenter": 13, "y": 3.55, "behavior": "patrol", "amplitude": 5, "speed": 1.4 },
+    { "id": "en_patrol_13_10", "xCenter": 13, "y": 10.05, "behavior": "patrol", "amplitude": 3, "speed": 1.4 }
   ],
   "checkpoints": [
     { "id": 1, "name": "Checkpoint 5", "floor": 5, "x": 10, "y": 5 },
