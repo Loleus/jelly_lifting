@@ -679,20 +679,27 @@ export default function App() {
   return (
     <main className="relative flex h-screen w-screen flex-col items-center justify-center overflow-hidden bg-[#050b14] font-freckle text-slate-100 select-none">
       <div
-        className={`relative overflow-hidden transition-all duration-700 ${config.filterMode === "crt" ? "crt-overlay" : ""
-          } `}
-        style={{
-          width: "100vw",
-          height: "100vh",
-          filter: screen === "menu" || screen === "levelSelect" ? "blur(1.5px) brightness(0.72)" : "none",
-        }}
+        className={`relative overflow-hidden ${config.filterMode === "crt" ? "crt-overlay" : ""}`}
+        style={{ width: "100vw", height: "100vh" }}
       >
         <div
           ref={mountRef}
-          className={`absolute inset-0 transition-all duration-700 ${config.filterMode === "crisp" ? "rendering-pixelated" : ""
-            }`}
+          className={`absolute inset-0 ${config.filterMode === "crisp" ? "rendering-pixelated" : ""}`}
           style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
         />
+        {/*
+          UWAGA: tu był filtr CSS `blur(1.5px) brightness(0.72)` nakładany na ten
+          kontener, czyli na PŁÓTNO WebGL. Każdy filtr CSS na canvasie zmusza
+          przeglądarkę do rasteryzacji płótna przez przebieg filtra w KAŻDEJ
+          klatce — i to był powód, dla którego w menu było 2-6 spików na sekundę,
+          a w rozgrywce zero (tam filtr był "none"). Zamiast filtra jest zwykła
+          półprzezroczysta warstwa: brightness(0.72) odpowiada przygaszeniu
+          ~28%, a warstwa to tania kompozycja bez filtra.
+          Różnica wizualna: tło jest ostre zamiast lekko rozmyte.
+        */}
+        {(screen === "menu" || screen === "levelSelect") && (
+          <div className="pointer-events-none absolute inset-0 bg-black/30" />
+        )}
       </div>
 
       {screen === "menu" && (

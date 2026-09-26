@@ -1957,6 +1957,9 @@ import { soundEngine } from "../soundEngine";
 
 export * from "./constants";
 
+/** Odstep miedzy klatkami renderu w MENU (~30 Hz — patrz startLoop). */
+const MENU_FRAME_MS = 32;
+
 export const DEFAULT_LEVEL = loadLevel(defaultLevelJson);
 
 interface PreparedStair extends StairDef {
@@ -2113,6 +2116,8 @@ export class GlowerTowerGame {
   };
   private accumulator = 0;
   private lastTime = performance.now();
+  /** Znacznik czasu ostatniej klatki renderu w menu (patrz MENU_FRAME_MS). */
+  private lastMenuRender = 0;
   private animFrameId = 0;
   private lastThrottleTime = performance.now();
   private playerHudTimer = 0;
@@ -2139,7 +2144,25 @@ export class GlowerTowerGame {
     this.particles = new ParticleSystem(this.scene, 250);
     this.applySceneShadows();
     this.setupEvents();
+    this.warmUpRender();
     this.startLoop();
+  }
+
+  /**
+   * Jeden "treningowy" render przy budowie poziomu — wykonuje cala pierwsza,
+   * najdrozsza prace, zanim gracz cokolwiek zobaczy:
+   *   * pierwszy przebieg mapy cienia (cala wieza, 1024 x 1024),
+   *   * pierwsze odbicie wody (cala scena do tekstury odbicia),
+   *   * pierwsze uzycie kazdego programu shaderow i zwiazane z tym bindowania.
+   * Bez tego wszystko to spadalo na pierwszą klatkę rozgrywki — i dokladnie to
+   * widac bylo jako jeden duzy uskok zaraz po wejsciu na poziom. Render idzie
+   * w czasie budowy silnika, czyli pod warstwa ladowania, wiec jest niewidoczny.
+   */
+  private warmUpRender() {
+    this.camera.position.set(Math.sin(0.6) * 30, this.towerHeight * 0.5, Math.cos(0.6) * 30);
+    this.camera.lookAt(0, this.towerHeight * 0.5, 0);
+    this.camera.updateMatrixWorld();
+    this.renderer.render(this.scene, this.camera);
   }
 
   // ── FIX: jeden symetryczny test obwodowy dla całej gry ──
@@ -3587,6 +3610,18 @@ export class GlowerTowerGame {
         this.lastThrottleTime = time;
       }
       const rawDelta = (time - this.lastTime) / 1000;
+      // W MENU nie renderujemy co klatke monitora. Kamera kraży z predkoscia
+      // 0.12 rad/s (w jednej klatce 60 Hz: 0.002 rad, czyli 0.1 stopnia), wiec
+      // 30 Hz jest nieodroznialne, a polowa aktualizacji canvasu to polowa
+      // pracy kompozytora: panel menu jest przezroczysta warstwa DOM nad
+      // plotnem WebGL skalowanym CSS-em na caly ekran, i to wlasnie mieszanie
+      // tych warstw obciazalo przegladarke w menu (w grze, gdzie panelu nie ma,
+      // pomiar pokazywal 0 spikow). Ruch liczony jest z czasu bezwzglednego
+      // (time * 0.001), wiec predkosc obrotu pozostaje identyczna.
+      if (this.sceneMode === "menu") {
+        if (time - this.lastMenuRender < MENU_FRAME_MS) return;
+        this.lastMenuRender = time;
+      }
       this.lastTime = time;
       const frameDelta = Math.min(rawDelta, MAX_ACCUMULATOR);
       this.accumulator += frameDelta;
