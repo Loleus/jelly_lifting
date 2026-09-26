@@ -647,7 +647,6 @@
 
 
 
-
 import * as THREE from "three";
 
 // ---------------------------------------------------------------------------
@@ -868,7 +867,10 @@ export function createTowerMaterial(
     wrapS: THREE.RepeatWrapping,
     wrapT: THREE.RepeatWrapping,
     repeat: [repeatU, repeatV] as [number, number],
-    anisotropy: 7,
+    // 4 zamiast 7: anizotropowe probkowanie jest drogie przy duzych teksturach,
+    // a mur (WALL_nrm 285 kB) pokrywa najwieksza czesc ekranu i renderuje sie
+    // dodatkowo w przebiegu odbicia wody. 4 wystarcza dla tego kadru.
+    anisotropy: 4,
   };
 
   return new THREE.MeshStandardMaterial({
@@ -1099,7 +1101,9 @@ export function createStairsMaterial(_loader?: THREE.TextureLoader): THREE.Mater
     wrapS: THREE.RepeatWrapping,
     wrapT: THREE.RepeatWrapping,
     repeat: [1.0, 1.0] as [number, number],
-    anisotropy: 7,
+    // 4 zamiast 7 — te same powody co przy murze: stopnie to najwiecej rysowanych
+    // instancji i pokrywaja spora czesc kadru.
+    anisotropy: 4,
   };
 
   return new THREE.MeshStandardMaterial({

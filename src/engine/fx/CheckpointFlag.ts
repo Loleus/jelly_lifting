@@ -7,6 +7,17 @@ export const FLAG_WAVE_BANDS = 1;
 export const FLAG_WAVE_SPEED = 6;
 const SEGMENTS = 16;
 
+// Wektory pomocnicze do przeliczania normalnych — modułowe, więc ich liczba
+// nie zależy od liczby klatek (patrz recomputeNormals).
+const _pA = new THREE.Vector3();
+const _pB = new THREE.Vector3();
+const _pC = new THREE.Vector3();
+const _nA = new THREE.Vector3();
+const _nB = new THREE.Vector3();
+const _nC = new THREE.Vector3();
+const _cb = new THREE.Vector3();
+const _ab = new THREE.Vector3();
+
 /** Keeps the last deformed surface available to the shadow pass while asleep. */
 export class CheckpointFlag {
   readonly geometry = new THREE.BufferGeometry();
@@ -61,7 +72,56 @@ export class CheckpointFlag {
     }
     this.positions.needsUpdate = true;
     // Only awake flags need new normals; leaving them flat changes the lighting.
-    this.geometry.computeVertexNormals();
+    this.recomputeNormals();
     return true;
+  }
+
+  /**
+   * To samo co BufferGeometry.computeVertexNormals(), ale BEZ alokacji.
+   * Wersja z three tworzy przy KAŻDYM wywołaniu 8 obiektów Vector3 (linie
+   * 1031-1033 w BufferGeometry.js), a ta metoda jest wołana co klatkę dla
+   * każdej widocznej flagi — czyli setki małych obiektów na sekundę. To one
+   * karmią cycle collector Gecko, który potem pracuje nawet w bezczynności.
+   * Matematyka jest identyczna (akumulacja iloczynów wektorowych na wierzchołek
+   * i normalizacja), więc wynik jest bit w bit ten sam.
+   */
+  private recomputeNormals() {
+    const position = this.positions;
+    const index = this.geometry.index;
+    if (!index) return;
+    let normal = this.geometry.getAttribute("normal") as THREE.BufferAttribute | undefined;
+    if (!normal || normal.count !== position.count) {
+      normal = new THREE.BufferAttribute(new Float32Array(position.count * 3), 3);
+      normal.setUsage(THREE.DynamicDrawUsage);
+      this.geometry.setAttribute("normal", normal);
+    } else {
+      for (let i = 0, il = normal.count; i < il; i++) normal.setXYZ(i, 0, 0, 0);
+    }
+    for (let i = 0, il = index.count; i < il; i += 3) {
+      const vA = index.getX(i);
+      const vB = index.getX(i + 1);
+      const vC = index.getX(i + 2);
+      _pA.fromBufferAttribute(position, vA);
+      _pB.fromBufferAttribute(position, vB);
+      _pC.fromBufferAttribute(position, vC);
+      _cb.subVectors(_pC, _pB);
+      _ab.subVectors(_pA, _pB);
+      _cb.cross(_ab);
+      _nA.fromBufferAttribute(normal, vA);
+      _nB.fromBufferAttribute(normal, vB);
+      _nC.fromBufferAttribute(normal, vC);
+      _nA.add(_cb);
+      _nB.add(_cb);
+      _nC.add(_cb);
+      normal.setXYZ(vA, _nA.x, _nA.y, _nA.z);
+      normal.setXYZ(vB, _nB.x, _nB.y, _nB.z);
+      normal.setXYZ(vC, _nC.x, _nC.y, _nC.z);
+    }
+    for (let i = 0, il = normal.count; i < il; i++) {
+      _nA.fromBufferAttribute(normal, i);
+      _nA.normalize();
+      normal.setXYZ(i, _nA.x, _nA.y, _nA.z);
+    }
+    normal.needsUpdate = true;
   }
 }

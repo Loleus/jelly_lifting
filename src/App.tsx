@@ -436,8 +436,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // setRenderResolution ma wlasny guard na powtorzony rozmiar (patrz silnik),
+    // ale sam efekt zalezy od OBIEKTU `resolution`. Gdy pickResolutionProfile
+    // zwroci nowy obiekt o tych samych wymiarach, efekt i tak sie wykona — a
+    // ponowne ustawienie bufora rysowania w Firefoksie to nowy SharedSurface i
+    // przejscie przez ImageBridge (widoczne w profilu jako PBackgroundChild).
+    // Dlatego przekazujemy wymiary liczbami, a nie calym obiektem.
     gameRef.current?.setRenderResolution(resolution.width, resolution.height);
-  }, [resolution]);
+  }, [resolution.width, resolution.height]);
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === "r" && IN_GAME_SCREENS.includes(screenRef.current)) {

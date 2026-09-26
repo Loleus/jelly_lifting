@@ -1880,14 +1880,6 @@
 
 
 
-
-
-
-
-
-
-
-
 import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { Water } from "three/addons/objects/Water.js";
@@ -2051,8 +2043,21 @@ export class GlowerTowerGame {
   private get groundTintTopY(): number { return this.waterLevel + 4.6; }
   private floorMesh!: THREE.Mesh;
   private sky!: Sky;
+  /** Ostatnio ustawiony rozmiar bufora rysowania (patrz setRenderResolution). */
+  private renderWidth = -1;
+  private renderHeight = -1;
+  /** Nakładka diagnostyczna i jej akumulatory (tylko tryb dev). */
+  /**
+   * Krok fizyki. 1/120 zamiast FIXED_DT (1/60): przy renderze 56-60 Hz
+   * akumulator okresowo zbierał DWA kroki w jednej klatce, co przesuwało
+   * postać o podwójny dystans — widoczne jako szarpnięcie przy poprawnym
+   * średnim FPS. Krótszy krok rozbija ten skok na dwa mniejsze.
+   */
+  private physicsStep = 1 / 120;
   private water!: Water;
-  private composer!: EffectComposer;
+  private composer?: EffectComposer;
+  private renderPass!: RenderPass;
+  private outputPass!: OutputPass;
   private bloomPass!: UnrealBloomPass;
   private sun = new THREE.Vector3();
   private readonly physicsRadial = new THREE.Vector3();
@@ -2154,6 +2159,13 @@ export class GlowerTowerGame {
       if (!(obj instanceof THREE.Mesh)) return;
       if (obj === skyMesh) return;
       if (obj === waterMesh) { obj.castShadow = false; obj.receiveShadow = true; return; }
+      // MUR WIEZY: rzuca cien, ale go NIE ODBIERA. To najwieksza powierzchnia
+      // w kadrze (walec na cala wysokosc), a kazdy jego fragment kosztowal probe
+      // mapy cienia (5 odczytow Vogel-dysku) w KAZDYM z dwoch przebiegow klatki
+      // — w widoku glownym i w odbiciu wody. Walec jest wypukly, wiec sam siebie
+      // nie zacienia; tracone sa tylko drobne cienie rzucane NA sciane przez
+      // przylegajace stopnie i mechanizmy.
+      if (obj === this.towerMesh) { obj.castShadow = true; obj.receiveShadow = false; return; }
       if (obj.userData?.noShadow === true) { obj.castShadow = false; obj.receiveShadow = false; return; }
       const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
       const isDecorative = materials.some(
@@ -2200,9 +2212,13 @@ export class GlowerTowerGame {
     this.scene.add(this.hemiLight);
     this.sunLight = new THREE.DirectionalLight("#ffe999", 1.9);
     this.sunLight.castShadow = true;
-    // Ostrość cienia bierze się z ciasnej kamery (patrz buildWorld), nie
-    // z rozdzielczości mapy — a wypełnienie mapy rośnie kwadratowo.
-    this.sunLight.shadow.mapSize.set(2048, 2048);
+    // 1024 zamiast 2048: przebieg mapy cienia renderuje CALA wieze (mur, wszystkie
+    // instancje stopni, mechanizmy) i powtarza sie w kazdej klatce, niezaleznie od
+    // tego, gdzie stoi gracz — dlatego obciazenie jest takie samo na gorze i na
+    // dole wiezy. Zmniejszenie mapy daje 4x mniej pracy, a przy ciasnej kamerze
+    // cienia (patrz buildWorld) teksel ma nadal ok. 10 cm, czyli cien pozostaje
+    // ostry w tym kadrze.
+    this.sunLight.shadow.mapSize.set(1024, 1024);
     // Wartości startowe; buildWorld() dopasowuje ortho do bryły wieży.
     // |bias| MUSI być mały: shader dodaje go do znormalizowanej głębokości
     // (near..far), więc duża wartość ujemna robi „przeciek światła” i jasny pas
@@ -2222,7 +2238,6 @@ export class GlowerTowerGame {
     this.sunLight.shadow.camera.updateProjectionMatrix();
     this.sunLight.shadow.needsUpdate = true;
     this.scene.add(this.sunLight);
-    const renderPass = new RenderPass(this.scene, this.camera);
     // UnrealBloomPass buduje piramidę render targetów i robi kilkanaście
     // przebiegów na klatkę, a koszt skaluje się wprost z rozdzielczością —
     // dlatego pracuje na małym buforze (rozmycie jest miękkie z założenia,
@@ -2231,11 +2246,29 @@ export class GlowerTowerGame {
     // Przy strength 0.01 efekt tylko dokłada rozmyty nalot w jasnych partiach
     // (niebo, woda), więc jest wyłączony. Włączenie: enabled = true.
     this.bloomPass.enabled = false;
-    const outputPass = new OutputPass();
-    this.composer = new EffectComposer(this.renderer);
-    this.composer.addPass(renderPass);
-    this.composer.addPass(this.bloomPass);
-    this.composer.addPass(outputPass);
+    // Kompozytor NIE jest tworzony w initThree. new EffectComposer(renderer)
+    // alokuje od razu DWA render targety w rozmiarze klatki typu HalfFloatType
+    // (~6,5 MB przy 640x640), ktore przy wylaczonym blooma sa kompletnie
+    // bezuzyteczne — a kazdy taki bufor to zasob procesu GPU, ktory przegladarka
+    // musi sledzic i utrzymywac (w Firefoksie widac to jako robote IPC na
+    // ImageBridge). Tworzymy go leniwie w ensureComposer(), tylko gdy bloom
+    // faktycznie dziala.
+    this.renderPass = new RenderPass(this.scene, this.camera);
+    this.outputPass = new OutputPass();
+  }
+
+  /** Kompozytor powstaje dopiero, gdy bloom jest wlaczony (patrz initThree). */
+  private ensureComposer(): EffectComposer {
+    if (!this.composer) {
+      this.composer = new EffectComposer(this.renderer);
+      this.composer.addPass(this.renderPass);
+      this.composer.addPass(this.bloomPass);
+      this.composer.addPass(this.outputPass);
+      const size = new THREE.Vector2();
+      this.renderer.getSize(size);
+      this.composer.setSize(size.x, size.y);
+    }
+    return this.composer;
   }
 
   public applyCanvasFilter() {
@@ -2247,6 +2280,12 @@ export class GlowerTowerGame {
   }
 
   private buildWorld() {
+    // Sfera nieba w scenie — jak w repo. Probna zamiana na wypieczona cubemape
+    // (scene.background) zostala WYCOFANA: wypiek 256 px na sciane pokrywa 90
+    // stopni, czyli ~2.8 teksela na stopien, a sfera renderuje sie w
+    // rozdzielczosci ekranu (~7 px na stopien). Powierzchnia powiekszona 2.5x
+    // dawala rozmytą, mleczną plame zamiast chmur, co czytalo sie jako mgla.
+    // Chcesz taniej — trzeba zmienic shader chmur, nie rozdzielczosc tla.
     this.sky = new Sky();
     this.sky.scale.setScalar(10000);
     this.sky.frustumCulled = false;
@@ -2334,6 +2373,8 @@ export class GlowerTowerGame {
     const waterNormals = textureLoader.load(waterNormalsUrl);
     waterNormals.wrapS = THREE.RepeatWrapping; waterNormals.wrapT = THREE.RepeatWrapping;
     this.water = new Water(waterGeometry, {
+      // Rozdzielczosc odbicia NIEZMIENIONA (512) — jak w repo. Kazde zmniejszenie
+      // tego bufora widac na fali, wiec zostaje oryginalna wartosc.
       textureWidth: 512, textureHeight: 512, waterNormals: waterNormals,
       sunDirection: this.sun.clone().normalize(), sunColor: 0x7F7F7F, waterColor: 0x555555,
       distortionScale: 0.8, fog: this.scene.fog !== undefined,
@@ -2364,12 +2405,14 @@ export class GlowerTowerGame {
         }`
       );
     };
-    // Odbicie wody (water.onBeforeRender) renderuje cala scene do tekstury
-    // 512x512 przy kazdym wywolaniu — to najdrozsza pozycja klatki po mapie
-    // cienia. Probne liczenie go co druga klatke zostalo WYCOFANE: mapa cienia
-    // i tak musi byc odswiezana co klatke, wiec oszczednosc byla polowiczna,
-    // a odbicie klatkalo w rytm polowy tempa (widoczne jako skoki animacji).
-    // Jesli trzeba ciac dalej, to najpierw textureWidth/Height ponizej.
+    // Odbicie wody zostaje DOKLADNIE takie, jak w Water.js — bez zadnych owijek
+    // onBeforeRender. Water sam dba o koszt: w przebiegu odbicia ustawia
+    // renderer.shadowMap.autoUpdate = false (Water.js:323) i przywraca stan po
+    // renderze, wiec mapa cienia liczy sie RAZ na klatke (w widoku glownym),
+    // a shader tafii uzywa tego samego cienia przez getShadowMask().
+    // Poprzednia wlasna owijka przywracala autoUpdate = true na czas tego
+    // przebiegu, czyli dokladala drugie liczenie calej mapy cienia na klatke —
+    // i to ona, a nie sama woda, dawala skoki narastajace z czasem.
     this.water.rotation.x = -Math.PI / 2;
     this.water.position.y = this.waterLevel;
     this.floorMesh = this.water as unknown as THREE.Mesh;
@@ -2411,7 +2454,8 @@ export class GlowerTowerGame {
       // przestaje być czytelna.
       shadowFloor: 0.06,
     });
-    this.towerMesh.receiveShadow = true; this.towerMesh.castShadow = true; this.towerMesh.frustumCulled = false;
+    // receiveShadow ustawia applySceneShadows() — dla muru celowo na false.
+    this.towerMesh.castShadow = true; this.towerMesh.frustumCulled = false;
     this.scene.add(this.towerMesh);
     const foamRing = new THREE.Mesh(
       new THREE.TorusGeometry(TOWER_RADIUS + 0.32, 0.06, 10, 48),
@@ -2442,6 +2486,7 @@ export class GlowerTowerGame {
     this.buildHazards(); this.buildCheckpoints(); this.buildDoors();
     this.buildCollapsingStairs(); this.buildLeversAndTogglableStairs();
     this.prewarmSummitShaders();
+    this.uploadSceneTextures();
   }
 
   private prewarmSummitShaders() {
@@ -2450,6 +2495,36 @@ export class GlowerTowerGame {
     const renderer = this.renderer as THREE.WebGLRenderer & { compileAsync?: (scene: THREE.Scene, camera: THREE.Camera) => Promise<void> };
     if (renderer.compileAsync) renderer.compileAsync(this.scene, this.camera).finally(() => { this.topRing.visible = wasTopVisible; this.summitCrown.visible = wasCrownVisible; });
     else { renderer.compile(this.scene, this.camera); this.topRing.visible = wasTopVisible; this.summitCrown.visible = wasCrownVisible; }
+  }
+
+  /**
+   * Wgrywa WSZYSTKIE tekstury na GPU od razu po zbudowaniu świata.
+   *
+   * Dlaczego to jest potrzebne: compile()/compileAsync() kompilują programy
+   * shaderów (zbiera materiały przez scene.traverse, więc także z obiektów
+   * ukrytych przez culling), ale NIE wgrywają obrazów. Tekstura leci na kartę
+   * dopiero w klatce, w której obiekt z tym materiałem jest faktycznie rysowany
+   * — plus generowane są wtedy mipmapy. Dlatego pierwsze pojawienie się wroga
+   * (ENEMY_col/nrm) albo windy (lift/STEP_col.png/nrm) powodowało wyraźne
+   * cięcie: to był upload kilkuset kB obrazu w środku klatki.
+   * renderer.initTexture() robi ten upload od razu, w czasie budowy świata.
+   */
+  private uploadSceneTextures() {
+    const textures = new Set<THREE.Texture>();
+    const slots = ["map", "normalMap", "emissiveMap", "roughnessMap", "metalnessMap", "alphaMap", "aoMap", "bumpMap"] as const;
+    this.scene.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh && !(obj as THREE.Points).isPoints && !(obj as THREE.Sprite).isSprite) return;
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const material of materials) {
+        if (!material) continue;
+        for (const slot of slots) {
+          const texture = (material as unknown as Record<string, THREE.Texture | null>)[slot];
+          if (texture && texture.isTexture) textures.add(texture);
+        }
+      }
+    });
+    for (const texture of textures) this.renderer.initTexture(texture);
   }
 
   private buildStairs() {
@@ -2578,12 +2653,11 @@ export class GlowerTowerGame {
   private buildGems() {
     const gemGeo = new THREE.OctahedronGeometry(0.32, 0);
     // Klejnoty maja lsnic jak szlif, nie jak plaskie plamy:
-    //  - metalness bylo 0.9, a scena ma scene.environment = null; metal bez
-    //    odbicia nie ma ani diffuse, ani specularu -> w cieniu zostawal sam
-    //    obrys. Dlatego metal spada do 0.05, a diffuse/albedo wraca,
+    //  - metalness 0.05 (bez tego metal bez envMap nie ma ani diffuse, ani
+    //    specularu i w cieniu zostawal sam obrys),
     //  - chropowatosc 0.08 daje ostry refleks slonca, ktory iskrzy sie na
     //    kolejnych scianach szlifu,
-    //  - flatShading: kazda sciana ma wlasna normalna -> widac bryle,
+    //  - flatShading: kazda sciana szlifu ma wlasna normalna, wiec widac bryle,
     //  - applyGemGlow dorzuca tania poswiate zalezna od sciany (w cieniu tez
     //    widac ksztalt, a nie sam obrys).
     const gemMat = new THREE.MeshStandardMaterial({
@@ -2591,9 +2665,6 @@ export class GlowerTowerGame {
       color: "#f59e0b",
       emissive: "#d97706",
       emissiveIntensity: 0.6,
-      // Zmieniamy WYLACZNIE sposob odbijania swiatla: ostry refleks, diffuse
-      // wraca (metalness bylo 0.9 bez envMap = brak diffuse i specularu),
-      // flatShading daje kazdej scianie wlasna normalna.
       roughness: 0.08,
       metalness: 0.05,
       flatShading: true,
@@ -2623,7 +2694,12 @@ export class GlowerTowerGame {
     for (const dir of candidates) {
       // FIX: fromSlot to już indeks, wrapujemy arytmetycznie, nie przez stairIndexAt(indeks).
       const targetSlot = wrapValue(fromSlot + dir * moveSteps, CIRCUMFERENCE_STEPS);
-      const exists = this.staticStairs.some((stair) => stairIndexAt(stair.x) === targetSlot && Math.abs(stair.topY - topY) < 0.2);
+      // Zwykła pętla zamiast .some(domknięcie): ta funkcja jest wołana przy
+      // każdym odbiciu każdej piłki, a domknięcie = nowy obiekt dla GC.
+      let exists = false;
+      for (const stair of this.staticStairs) {
+        if (stairIndexAt(stair.x) === targetSlot && Math.abs(stair.topY - topY) < 0.2) { exists = true; break; }
+      }
       if (exists) return stairCenterX(targetSlot);
     }
     return stairCenterX(fromSlot);
@@ -2691,6 +2767,12 @@ export class GlowerTowerGame {
       arm.position.set(0, 0, armLen / 2); armGroup.add(arm);
       var ball = new THREE.Mesh(ballGeo, redMat.clone()); ball.position.set(0, 0, armLen); ball.userData = { isBall: true }; armGroup.add(ball);
       armGroup.rotation.x = -0.6; group.add(armGroup);
+      // Referencje do animowanych części zapisane RAZ, przy budowie. Wcześniej
+      // pętla fizyki szukała ich przez children.find(function …) przy KAŻDYM
+      // podkroku — czyli tworzyła dwie nowe domknięcia na dźwignię na krok
+      // (60-300 obiektów/s przy pełnym obciążeniu) i dokładała pracy GC.
+      group.userData.armGroup = armGroup;
+      group.userData.ball = ball;
       group.position.set(radial.x * TOWER_RADIUS, spec.topY + 1.2, radial.z * TOWER_RADIUS);
       group.rotation.y = theta; this.scene.add(group);
       this.levers.push({ id: spec.id, x: centerX, topY: spec.topY, theta, mesh: group, extended: false });
@@ -2894,51 +2976,64 @@ export class GlowerTowerGame {
     this.playerState.jiggle += this.playerState.jiggleVel * dt;
     this.playerState.jiggle = THREE.MathUtils.clamp(this.playerState.jiggle, -0.32, 0.32);
 
-    this.levers.forEach((lev) => {
+    // Petle indeksowane zamiast forEach z domknieciem: kazde wywolanie
+    // array.forEach((x) => …) tworzy NOWY obiekt funkcji, a ta metoda jest
+    // wolana do 5 razy na klatke (podkroki fizyki). Kilkanascie takich petli
+    // w tej funkcji dawalo ~50 domkniec na klatke, czyli ~3000 obiektow na
+    // sekunde trafiajacych prosto do kosza — to jest wlasnie ten churn, ktory
+    // napedzal cycle collector i powodowal skoki. Petla indeksowana nie
+    // alokuje niczego.
+    for (let levIdx = 0; levIdx < this.levers.length; levIdx++) {
+      const lev = this.levers[levIdx];
       // FIX: lev.x to już środek (patrz build) - odległość symetryczna, bez przesunięcia 0.5.
-      var onIt = Math.abs(this.playerState.y - (lev.topY + 1.2)) < 1.5 && wrappedStepDistance(this.playerState.x, lev.x) < 0.9;
+      const onIt = Math.abs(this.playerState.y - (lev.topY + 1.2)) < 1.5 && wrappedStepDistance(this.playerState.x, lev.x) < 0.9;
       if (onIt && this.input.doorQueued && this.leverCooldown <= 0) {
         this.input.doorQueued = false; lev.extended = !lev.extended; this.leverCooldown = 0.4;
         soundEngine.playLever();
-        this.togglableStairs.forEach((ts) => {
-          if (ts.leverId !== lev.id) return; ts.extended = lev.extended;
+        for (let tsIdx = 0; tsIdx < this.togglableStairs.length; tsIdx++) {
+          const ts = this.togglableStairs[tsIdx];
+          if (ts.leverId !== lev.id) continue;
+          ts.extended = lev.extended;
           const info = this.ambientAudioFor(ts.x, ts.topY);
           if (info) soundEngine.playStairSlide(info.xDist, info.yDist, info.pan, 0.7);
-        });
+        }
       }
-      var armGroup = lev.mesh.children.find(function (c) { return c.name === "armGroup"; }) as unknown as THREE.Group;
-      if (armGroup) (armGroup as any).rotation.x = THREE.MathUtils.lerp((armGroup as any).rotation.x, lev.extended ? -0.2 : -1.0, 0.12);
-      var ball = armGroup ? (armGroup as any).children.find(function (c: any) { return c.userData && c.userData.isBall; }) as unknown as THREE.Mesh : undefined;
+      // Referencje z userData (patrz build) — zero alokacji na krok fizyki.
+      const armGroup = lev.mesh.userData.armGroup as THREE.Group | undefined;
+      if (armGroup) armGroup.rotation.x = THREE.MathUtils.lerp(armGroup.rotation.x, lev.extended ? -0.2 : -1.0, 0.12);
+      const ball = lev.mesh.userData.ball as THREE.Mesh | undefined;
       if (ball && ball.material instanceof THREE.MeshStandardMaterial && ball.userData.extended !== lev.extended) {
         ball.userData.extended = lev.extended;
         ball.material.color.set(lev.extended ? "#4ade80" : "#ef4444");
         ball.material.emissive.set(lev.extended ? "#14532d" : "#7f1d1d");
       }
-    });
+    }
     if (this.leverCooldown > 0) this.leverCooldown -= dt;
 
-    this.togglableStairs.forEach((ts) => {
-      var target = ts.extended ? 0 : 1;
+    for (let tsIdx = 0; tsIdx < this.togglableStairs.length; tsIdx++) {
+      const ts = this.togglableStairs[tsIdx];
+      const target = ts.extended ? 0 : 1;
       ts.retractOffset = THREE.MathUtils.lerp(ts.retractOffset, target, 1 - Math.exp(-6 * dt));
       if (Math.abs(ts.retractOffset - target) < 0.005) ts.retractOffset = target;
       this.physicsRadial.set(Math.sin(ts.theta), 0, Math.cos(ts.theta));
-      var tOuter = TOWER_RADIUS + PLATFORM_DEPTH * 0.5; var tInner = TOWER_RADIUS - 0.8;
-      var dist = tOuter + (tInner - tOuter) * ts.retractOffset;
+      const tOuter = TOWER_RADIUS + PLATFORM_DEPTH * 0.5; const tInner = TOWER_RADIUS - 0.8;
+      const dist = tOuter + (tInner - tOuter) * ts.retractOffset;
       ts.mesh.position.set(this.physicsRadial.x * dist, ts.topY - PLATFORM_THICKNESS * 0.5, this.physicsRadial.z * dist);
-      var tMesh = ts.mesh.children[0];
+      const tMesh = ts.mesh.children[0];
       if (tMesh && tMesh instanceof THREE.Mesh && tMesh.material instanceof THREE.MeshStandardMaterial) {
-        var isGreen = ts.retractOffset < 0.5;
+        const isGreen = ts.retractOffset < 0.5;
         if (tMesh.userData.isGreen !== isGreen) {
           tMesh.userData.isGreen = isGreen;
           tMesh.material.color.set(isGreen ? "#4ade80" : "#ef4444");
           tMesh.material.emissive.set(isGreen ? "#198745f0" : "#831b1bed");
         }
       }
-    });
+    }
 
     if (this.input.doorQueued) { if (this.doorCooldown <= 0) this.tryUseDoor(); this.input.doorQueued = false; }
 
-    this.collapsingStairs.forEach((cs) => {
+    for (let csIdx = 0; csIdx < this.collapsingStairs.length; csIdx++) {
+      const cs = this.collapsingStairs[csIdx];
       // cs.x to środek - test symetryczny, ten był już dobry.
       const nextPlayerY = this.playerState.y + this.playerState.vy * dt;
       const isDescendingThroughTop = this.playerState.vy <= 0 &&
@@ -2971,13 +3066,14 @@ export class GlowerTowerGame {
           break;
       }
       this.physicsRadial.set(Math.sin(cs.theta), 0, Math.cos(cs.theta));
-      var outer = PLAYER_STAND_RADIUS; var inner = TOWER_RADIUS - 0.8;
-      var dist = outer + (inner - outer) * cs.retractOffset;
+      const outer = PLAYER_STAND_RADIUS; const inner = TOWER_RADIUS - 0.8;
+      const dist = outer + (inner - outer) * cs.retractOffset;
       cs.mesh.position.set(this.physicsRadial.x * dist, cs.topY - PLATFORM_THICKNESS * 0.5, this.physicsRadial.z * dist);
-    });
+    }
 
     const timeSec = this.playerState.elapsedTime;
-    this.elevators.forEach((elevator) => {
+    for (let elevIdx = 0; elevIdx < this.elevators.length; elevIdx++) {
+      const elevator = this.elevators[elevIdx];
       const raw = (Math.sin(timeSec * elevator.speed + elevator.phase) + 1) * 0.5;
       const dwell = 0.15;
       const normalized = THREE.MathUtils.smoothstep(raw, dwell, 1 - dwell);
@@ -2985,9 +3081,10 @@ export class GlowerTowerGame {
       if (elevator.mesh) elevator.mesh.position.y = y - PLATFORM_THICKNESS * 0.5;
       (elevator as unknown as { prevTopY: number }).prevTopY = elevator.currentTopY;
       elevator.currentTopY = y;
-    });
+    }
 
-    this.hazards.forEach((haz) => {
+    for (let hazIdx = 0; hazIdx < this.hazards.length; hazIdx++) {
+      const haz = this.hazards[hazIdx];
       switch (haz.behavior) {
         case "bounce": {
           haz.bounceElapsed += dt;
@@ -3025,9 +3122,12 @@ export class GlowerTowerGame {
         const enemyFloor = this.findStairTopBelow(haz.currentX, hazY + 0.01);
         this.applyKnockdown(7.5, this.playerState.rideElevator, undefined, enemyFloor);
       }
-    });
+    }
 
-    this.springs.forEach((sp) => { if (sp.cooldown > 0) sp.cooldown -= dt; });
+    for (let spIdx = 0; spIdx < this.springs.length; spIdx++) {
+      const sp = this.springs[spIdx];
+      if (sp.cooldown > 0) sp.cooldown -= dt;
+    }
 
     if (this.playerState.rideElevator >= 0) {
       const ridingElevator = this.playerState.rideElevator;
@@ -3119,7 +3219,8 @@ export class GlowerTowerGame {
 
     this.resolveMovableStairLateralHit();
 
-    this.springs.forEach((sp) => {
+    for (let spIdx = 0; spIdx < this.springs.length; spIdx++) {
+      const sp = this.springs[spIdx];
       // FIX SPRĘŻYNA: sp.x to już środek (build +0.5). half=0.3 (0.6/2). Symetrycznie.
       const springOverlap = this.overlapsCentered(this.playerState.x, PLAYER_HALF_WIDTH * 1.5, sp.x, 0.3);
       if (sp.cooldown <= 0 && Math.abs(this.playerState.y - sp.topY) < 0.5 && springOverlap && this.playerState.vy <= 2) {
@@ -3127,18 +3228,20 @@ export class GlowerTowerGame {
         const theta = stepToTheta(sp.x); const rad = new THREE.Vector3(Math.sin(theta), 0, Math.cos(theta));
         this.spawnParticles(new THREE.Vector3(rad.x * PLAYER_STAND_RADIUS, sp.topY + 0.2, rad.z * PLAYER_STAND_RADIUS), 16, 0xf59e0b, 4.2, "burst", sp.topY);
       }
-    });
+    }
 
-    this.gems.forEach((gem) => {
+    for (let gemIdx = 0; gemIdx < this.gems.length; gemIdx++) {
+      const gem = this.gems[gemIdx];
       // FIX KLEJNOT: gem.x to środek, half=0.3. Było left -> przesunięcie +0.3.
       const gemOverlap = this.overlapsCentered(this.playerState.x, PLAYER_HALF_WIDTH, gem.x, 0.3);
       if (!gem.collected && gem.y >= this.playerState.y - 0.3 && gem.y <= this.playerState.y + 2.5 && gemOverlap) {
         gem.collected = true; this.playerState.gemsCollected++; this.playerState.score += 250; this.playerState.crownFlash = 0.3; soundEngine.playCoin();
         if (gem.mesh) { gem.mesh.visible = false; this.spawnParticles(gem.mesh.position, 14, 0xfbbf24, 3.5, "burst", this.findStairTopBelow(gem.x, gem.y)); }
       }
-    });
+    }
 
-    this.checkpoints.forEach((cp) => {
+    for (let cpIdx = 0; cpIdx < this.checkpoints.length; cpIdx++) {
+      const cp = this.checkpoints[cpIdx];
       // FIX CHECKPOINT: cp.x to środek, half=0.6 (1.2/2).
       const cpOverlap = this.overlapsCentered(this.playerState.x, PLAYER_HALF_WIDTH * 2, cp.x, 0.6);
       if (!cp.activated && Math.abs(this.playerState.y - cp.y) < 1.2 && cpOverlap) {
@@ -3151,7 +3254,7 @@ export class GlowerTowerGame {
           this.spawnParticles(cPos, 20, 0x22c55e, 3.0, "burst", cp.y);
         }
       }
-    });
+    }
 
     const waterSurface = this.waterLevel + 0.25;
     if (this.waterEnterCooldown > 0) this.waterEnterCooldown -= dt;
@@ -3488,11 +3591,21 @@ export class GlowerTowerGame {
       const frameDelta = Math.min(rawDelta, MAX_ACCUMULATOR);
       this.accumulator += frameDelta;
       let subSteps = 0;
-      while (this.accumulator >= FIXED_DT && subSteps < 5) { this.stepPhysics(FIXED_DT); this.accumulator -= FIXED_DT; subSteps++; }
-      if (subSteps >= 5) this.accumulator = 0;
+      // Krok z pola (patrz physicsStep): przy 60 Hz renderu i kroku 1/60
+      // akumulator okresowo zbiera dwa kroki w jednej klatce i postac przesuwa
+      // sie o podwojny dystans — to widac jako szarpniecie przy poprawnym FPS.
+      // Krok 1/120 rozbija ten skok na dwa mniejsze.
+      const step = this.physicsStep;
+      while (this.accumulator >= step && subSteps < 8) { this.stepPhysics(step); this.accumulator -= step; subSteps++; }
+      if (subSteps >= 8) this.accumulator = 0;
       this.updateVisuals(time * 0.001, frameDelta);
       if (this.sky && (this.sky as any).material?.uniforms?.time) (this.sky as any).material.uniforms.time.value = time * 0.00005;
       if (this.water && (this.water.material as any).uniforms?.time) (this.water.material as any).uniforms.time.value += frameDelta;
+      // UWAGA: nieba NIE wypiekamy w petli. Wypiek to szesc przebiegow sfery z
+      // chmurami fbm (6 x 256 x 256 x ~40 sin na piksel) — zrobiony w klatce
+      // daje wyrazny, REGULARNY skok. Chmury przesuwaja sie o 5e-7 jednostki na
+      // sekunde, wiec drugi wypiek nie jest potrzebny w ogole: niebo powstaje
+      // raz, w buildWorld (patrz bakeSky).
 
       // Mapa cienia MUSI odswiezac sie w KAZDEJ klatce gry. Przy autoUpdate
       // false three pomija przebieg, a needsUpdate jest zerowane po kazdym
@@ -3500,7 +3613,7 @@ export class GlowerTowerGame {
       // co druga klatke — cien stalby w miejscu i przyklejal sie do podloza.
       // W menu mapa jest zamrozona w setSceneMode, bo scena sie tam nie zmienia.
       if (this.sceneMode === "play") this.renderer.shadowMap.autoUpdate = true;
-      if (this.composer && this.bloomPass.enabled) this.composer.render();
+      if (this.bloomPass.enabled) this.ensureComposer().render();
       else this.renderer.render(this.scene, this.camera);
       this.playerHudTimer += frameDelta;
       // HUD to najdroższa pozycja pętli po stronie CPU: każde wywołanie u
@@ -3617,7 +3730,9 @@ export class GlowerTowerGame {
     const now = performance.now();
     if (now - this.ambientSourcesAt < 100) return;
     this.ambientSourcesAt = now;
-    soundEngine.updateAmbient(collectAmbientSources(this.hazards, this.elevators, this.playerState.x, this.playerState.y, this.camera));
+    soundEngine.updateAmbient(
+      collectAmbientSources(this.hazards, this.elevators, this.playerState.x, this.playerState.y, this.camera, this.physicsStep)
+    );
   }
 
   private setupEvents() { window.addEventListener("keydown", this.onKeyDown); window.addEventListener("keyup", this.onKeyUp); }
@@ -3637,9 +3752,28 @@ export class GlowerTowerGame {
 
   public setGameStatus(status: GameStatus) { this.playerState.status = status; if (this.onGameStatusChange) this.onGameStatusChange(status); }
 
+  /**
+   * Częstotliwość kroku fizyki. Podniesienie jej (np. do 120) zmniejsza skok
+   * pozycji, gdy w jednej klatce renderu zbiorą się dwa kroki — kosztem
+   * proporcjonalnie większej pracy CPU na fizykę (jest tania).
+   * Dostępne także z konsoli: __jellyGame.setPhysicsRate(120).
+   */
+  public setPhysicsRate(hz: number) {
+    this.physicsStep = 1 / Math.max(30, Math.min(240, hz));
+    this.accumulator = 0;
+  }
+
   public setRenderResolution(width: number, height: number) {
     const s = this.config.renderScale; const w = width * s; const h = height * s; const aspect = w / h;
-    this.renderer.setPixelRatio(1); this.renderer.setSize(w, h, false); this.composer.setSize(w, h);
+    // WCZESNE WYJSCIE: three/WebGLRenderer.setSize() NIE sprawdza, czy rozmiar
+    // sie zmienil, a przypisanie canvas.width/height bez zmiany wartosci i tak
+    // unieważnia bufor rysowania. W Firefoksie to wymusza alokacje nowego
+    // SharedSurface i przejscie przez ImageBridge (PBackgroundChild) — czyli
+    // dokladnie ten slad IPC z profilu. Wystarczy pominac wywolanie, gdy
+    // rozmiar jest ten sam.
+    if (this.renderWidth === w && this.renderHeight === h) return;
+    this.renderWidth = w; this.renderHeight = h;
+    this.renderer.setPixelRatio(1); this.renderer.setSize(w, h, false); this.composer?.setSize(w, h);
     const baseHalfHTan = Math.tan(THREE.MathUtils.degToRad(BASE_VERTICAL_FOV) / 2) * ASPECT_RATIO;
     if (aspect < ASPECT_RATIO) { const vFov = THREE.MathUtils.radToDeg(2 * Math.atan(baseHalfHTan / aspect)); this.camera.fov = Math.min(vFov, MAX_VERTICAL_FOV); } else this.camera.fov = BASE_VERTICAL_FOV;
     this.camera.aspect = aspect; this.camera.updateProjectionMatrix(); this.renderer.domElement.id = `game-canvas-${width}x${height}`;
@@ -3704,7 +3838,20 @@ export class GlowerTowerGame {
     soundEngine.clearAmbient();
     this.player.dispose(); this.particles.dispose();
     window.cancelAnimationFrame(this.animFrameId); window.removeEventListener("keydown", this.onKeyDown); window.removeEventListener("keyup", this.onKeyUp);
-    this.renderer.dispose(); if (this.renderer.domElement.parentElement) this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);
+    this.composer?.dispose();
+    // PMREMGenerator trzyma wlasne materialy i geometrie — bez tego kazda
+    // przebudowa silnika (menu <-> poziom, restart, wybor poziomu) zostawiala
+    // komplet zasobow GPU.
+    this.pmremGenerator?.dispose?.();
+    if (this.renderer.domElement.parentElement) this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);
+    // KLUCZOWE DLA PAMIECI: renderer.dispose() zwalnia zasoby three, ale NIE
+    // niszczy kontekstu WebGL — a kazda przebudowa silnika tworzy NOWY kontekst
+    // na nowym canvasie. Stare konteksty zyja do smieciowego zebrania, kazdy z
+    // wlasnymi teksturami, buforami i programami, wiec pamiec rosla z kazdym
+    // wejsciem do menu i kazdym restartem poziomu. forceContextLoss() oddaje
+    // pamiec GPU NATYCHMIAST.
+    this.renderer.forceContextLoss();
+    this.renderer.dispose();
     this.scene.traverse((obj) => { if (obj instanceof THREE.Mesh) { obj.geometry.dispose(); if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose()); else obj.material.dispose(); } });
   }
 }

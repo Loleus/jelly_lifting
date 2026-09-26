@@ -68,6 +68,9 @@ const _baseLight = new THREE.Color(BELLY_LIGHT_COLOR);
 const _goldLight = new THREE.Color("#fbbf24");
 const _baseDropColor = new THREE.Color("#48ff00");
 const _baseDropEmissive = new THREE.Color("#37ca0b");
+/** Tymczasowe kolory animacji korony — modułowe, więc zero alokacji na klatkę. */
+const _flashGreen = new THREE.Color();
+const _flashGold = new THREE.Color();
 
 export class PlayerRig {
   /** Mnożnik prędkości wizualnej animacji chodu. 2 = dwa razy szybciej. */
@@ -366,7 +369,13 @@ export class PlayerRig {
     if (state.crownFlash > 0) {
       const t = 1 - state.crownFlash / 0.2;
       dropMat.color.lerpColors(_goldCrown, _greenCrown, t);
-      dropMat.emissive.set(_greenCrown.clone().multiplyScalar(0.3).lerp(_goldCrown.clone().multiplyScalar(0.6), 1 - t));
+      // Bez .clone() na klatkę: dwa nowe obiekty Color 60x/s w czasie każdej
+      // animacji korony (czyli po każdym klejnocie i skoku) trafiały wprost do
+      // kosza i karmiły cycle collector. Matematyka jest identyczna:
+      // zieleń*0.3 lerpowana do złota*0.6 przez (1 - t).
+      _flashGreen.copy(_greenCrown).multiplyScalar(0.3);
+      _flashGold.copy(_goldCrown).multiplyScalar(0.6);
+      dropMat.emissive.copy(_flashGreen).lerp(_flashGold, 1 - t);
       dropMat.emissiveIntensity = 0.85 - t * 0.55;
       this.topDrop.scale.multiplyScalar(1 + (1 - t) * 0.85);
     } else {
@@ -439,9 +448,16 @@ export class PlayerRig {
       intensity += (1 - t) * 1.4;
       lightIntensity += (1 - t) * 0.9;
     } else {
-      mat.emissive.set(BELLY_EMISSIVE);
-      haloMat.color.set(BELLY_EMISSIVE);
-      this.bellyLight.color.set(BELLY_LIGHT_COLOR);
+      // UWAGA (wydajnosc): NIE uzywamy color.set("#hex"). W three Color.set()
+      // dla stringa wchodzi w setStyle(), a ta funkcja ma w srodku deklaracje
+      // funkcji pomocniczej handleAlpha (Color.js:286) — czyli KAZDE wywolanie
+      // tworzy nowe domkniecie, plus dopasowanie wzorca regex (tablica wynikow).
+      // Te trzy linie wykonywaly sie co klatke w trybie spoczynku, czyli ~180
+      // domkniec i ~180 tablic na sekunde, wprost do kosza → cycle collector.
+      // Kolory bazowe sa juz przygotowane w module, wiec wystarczy .copy().
+      mat.emissive.copy(_baseBelly);
+      haloMat.color.copy(_baseBelly);
+      this.bellyLight.color.copy(_baseLight);
     }
 
     mat.emissiveIntensity = intensity;

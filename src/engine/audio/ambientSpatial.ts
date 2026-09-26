@@ -64,7 +64,11 @@ export function collectAmbientSources(
   elevators: readonly ElevatorDef[],
   playerX: number,
   playerY: number,
-  camera: THREE.Camera
+  camera: THREE.Camera,
+  // Długość kroku fizyki. Prędkość windy liczymy z różnicy pozycji między
+  // krokami, więc dzielnik musi być AKTUALNYM krokiem (silnik używa 1/120),
+  // inaczej szmer windy byłby o połowę cichszy niż wcześniej.
+  stepSeconds: number = FIXED_DT
 ): AmbientSource[] {
   const sources: AmbientSource[] = [];
 
@@ -78,7 +82,7 @@ export function collectAmbientSources(
   for (let i = 0; i < elevators.length; i++) {
     const elev = elevators[i];
     const prevTopY = (elev as unknown as { prevTopY?: number }).prevTopY ?? elev.currentTopY;
-    const velocity = Math.abs(elev.currentTopY - prevTopY) / FIXED_DT;
+    const velocity = Math.abs(elev.currentTopY - prevTopY) / Math.max(0.0001, stepSeconds);
     if (velocity < 0.05) continue; // winda stoi — silnik milczy
     // Winda: kąt liczony od ŚRODKA (x + width/2), tak jak siatka wizualna.
     const info = ambientSpatial(elev.x + elev.width * 0.5, elev.currentTopY, playerX, playerY, camera);
